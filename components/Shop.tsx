@@ -128,6 +128,8 @@ const Shop: React.FC<ShopProps> = ({ user, onPurchase }) => {
                   disabled={!canAfford || (alreadyHas && item.type !== 'buff')}
                   onClick={(e) => { e.stopPropagation(); handleLocalPurchase(item); }}
                   className={`px-3 md:px-6 py-2 md:py-3 rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all ${
+                    isRecentlyPurchased ? 'animate-purchase-success' : ''
+                  } ${
                     alreadyHas && item.type !== 'buff'
                       ? "bg-zinc-900 text-zinc-700 border border-zinc-800"
                       : canAfford 

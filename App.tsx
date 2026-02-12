@@ -57,8 +57,12 @@ const App: React.FC = () => {
   };
 
   const fetchAiGreeting = async (u: User) => {
-    const msg = await geminiService.getMotivationalMessage(u.nickname, u.level, u.tasks.filter(t => !t.done).length);
-    setAiMessage(msg);
+    try {
+      const msg = await geminiService.getMotivationalMessage(u.nickname, u.level, u.tasks.filter(t => !t.done).length);
+      setAiMessage(msg);
+    } catch (e) {
+      console.warn("AI Greet falhou:", e);
+    }
   };
 
   const updateAndSave = useCallback((updated: User) => {
@@ -124,8 +128,8 @@ const App: React.FC = () => {
 
   const handleCancelTask = (task: Task) => {
     if (!user) return;
-    const config = RARITIES[task.rarity];
-    const diff = DIFFICULTIES[task.difficulty];
+    const config = RARITIES[task.rarity] || RARITIES.comum;
+    const diff = DIFFICULTIES[task.difficulty] || DIFFICULTIES.facil;
     const hpLoss = Math.max(5, Math.floor((config.xp * diff.multiplier) * 0.2));
     const willBreak = user.hp - hpLoss <= 0;
 
@@ -161,8 +165,8 @@ const App: React.FC = () => {
        return;
     }
 
-    const rConfig = RARITIES[task.rarity];
-    const dConfig = DIFFICULTIES[task.difficulty];
+    const rConfig = RARITIES[task.rarity] || RARITIES.comum;
+    const dConfig = DIFFICULTIES[task.difficulty] || DIFFICULTIES.facil;
     const classBase = CLASS_STATS[user.charClass];
     const earnedXp = Math.floor(rConfig.xp * dConfig.multiplier * classBase.xpMod);
     const earnedGold = Math.floor(rConfig.gold * dConfig.multiplier * classBase.goldMod);
@@ -225,7 +229,7 @@ const App: React.FC = () => {
     setIsCreatingCharacter(false);
   };
 
-  // Lógica de filtragem de inventário corrigida (optional chaining)
+  // Filtro de inventário com segurança para raridade
   const filteredInventory = user?.inventory?.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || 
                           item.description.toLowerCase().includes(inventorySearch.toLowerCase());
@@ -377,19 +381,21 @@ const App: React.FC = () => {
                   <div className="grid grid-cols-3 md:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto pr-4 scrollbar-hide">
                     {filteredInventory.map((item, idx) => {
                       const isEquipped = Object.values(user.equipment).includes(item.id);
-                      const rarityConfig = RARITIES[item.rarity];
+                      // Fallback fix: Assume "comum" if rarity is missing or undefined
+                      const rarityConfig = RARITIES[item.rarity] || RARITIES.comum;
+                      const colorClass = rarityConfig.color?.split(' ')[1] || 'border-zinc-700';
                       
                       return (
                         <div 
                           key={`${item.id}-${idx}`} 
                           onClick={() => setSelectedInventoryItem(item)}
                           className={`group aspect-square relative p-4 rounded-3xl border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 
-                            ${rarityConfig.color.split(' ')[1]} 
-                            ${rarityConfig.bg}
+                            ${colorClass} 
+                            ${rarityConfig.bg || 'bg-zinc-900/50'}
                             ${isEquipped ? 'ring-2 ring-white/20' : ''}
                             ${item.rarity === 'lendario' ? 'animate-pulse' : ''}`}
                         >
-                          <div className={`absolute inset-0 rounded-3xl opacity-10 pointer-events-none transition-opacity group-hover:opacity-20 ${rarityConfig.bg}`} />
+                          <div className={`absolute inset-0 rounded-3xl opacity-10 pointer-events-none transition-opacity group-hover:opacity-20 ${rarityConfig.bg || 'bg-zinc-900/50'}`} />
                           
                           <span className="text-4xl block group-hover:scale-110 transition-transform relative z-10">{item.icon}</span>
                           <h4 className="text-[8px] font-black uppercase text-center truncate w-full text-zinc-400 relative z-10">{item.name}</h4>
@@ -398,8 +404,8 @@ const App: React.FC = () => {
                             <span className="absolute top-2 right-2 text-[6px] bg-white text-black px-2 py-0.5 rounded-full font-black z-20">EQUIP</span>
                           )}
                           
-                          <span className={`absolute bottom-2 text-[6px] font-black uppercase tracking-tighter ${rarityConfig.color.split(' ')[0]}`}>
-                            {item.rarity}
+                          <span className={`absolute bottom-2 text-[6px] font-black uppercase tracking-tighter ${rarityConfig.color?.split(' ')[0] || 'text-zinc-400'}`}>
+                            {item.rarity || 'comum'}
                           </span>
                         </div>
                       );
@@ -444,8 +450,8 @@ const App: React.FC = () => {
               <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-500">Mural de Contratos</h3>
                 {user.tasks.filter(t => !t.done).map(task => {
-                  const config = RARITIES[task.rarity];
-                  const diff = DIFFICULTIES[task.difficulty];
+                  const config = RARITIES[task.rarity] || RARITIES.comum;
+                  const diff = DIFFICULTIES[task.difficulty] || DIFFICULTIES.facil;
                   let totalElapsedMs = task.accumulatedTimeMs + (task.startTime ? (currentTime - task.startTime) : 0);
                   const progress = Math.min(100, (totalElapsedMs / (task.minDurationSeconds * 1000)) * 100);
                   const timeLeft = Math.max(0, Math.floor(task.minDurationSeconds - (totalElapsedMs / 1000)));
