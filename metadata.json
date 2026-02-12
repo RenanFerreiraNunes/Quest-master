@@ -1,0 +1,8 @@
+{
+  "name": "QuestMaster RPG - Gamified Life",
+  "description": "Transforme sua produtividade em uma jornada épica com progressão de personagem, ganho de ouro, XP e itens lendários.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
