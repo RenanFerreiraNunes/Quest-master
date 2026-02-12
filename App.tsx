@@ -314,25 +314,25 @@ const App: React.FC = () => {
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                {/* Fixed Character Profile Card Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
+                {/* Character Profile Card */}
                 <div className="lg:col-span-5">
-                  <div className="relative aspect-[3/4] bg-zinc-900/40 rounded-[4rem] border-2 border-zinc-800 flex flex-col shadow-2xl overflow-hidden p-8">
-                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-30" />
+                  <div className="relative aspect-[3.5/4] bg-zinc-900/40 rounded-[4rem] border-2 border-zinc-800 flex flex-col shadow-2xl overflow-hidden p-6 md:p-10">
+                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-30 pointer-events-none" />
                     
                     {/* Header Area Slots */}
-                    <div className="flex justify-center mb-4">
+                    <div className="flex justify-center mb-6">
                       <EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
                     {/* Middle Area Avatar & Accessories */}
-                    <div className="flex items-center justify-between flex-1 mb-4">
+                    <div className="flex items-center justify-between flex-1 mb-6 gap-2">
                       <EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
                       
                       <div className="relative flex-1 flex justify-center">
-                        <div className="w-48 h-48 bg-zinc-950/60 rounded-full border border-zinc-800/50 flex items-center justify-center shadow-inner relative">
-                          <HeroAvatar appearance={user.appearance} user={user} size={150} />
-                          <div className="absolute -bottom-3 bg-zinc-900 border border-zinc-700 px-4 py-1 rounded-full text-[10px] font-black font-rpg shadow-xl">LEVEL {user.level}</div>
+                        <div className="w-40 h-40 md:w-52 md:h-52 bg-zinc-950/60 rounded-full border border-zinc-800/50 flex items-center justify-center shadow-inner relative">
+                          <HeroAvatar appearance={user.appearance} user={user} size={160} />
+                          <div className="absolute -bottom-3 bg-zinc-900 border border-zinc-700 px-4 py-1 rounded-full text-[10px] font-black font-rpg shadow-xl z-10">LEVEL {user.level}</div>
                         </div>
                       </div>
 
@@ -340,30 +340,30 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Bottom Slots */}
-                    <div className="flex justify-center gap-10 mb-8">
+                    <div className="flex justify-center gap-8 mb-8">
                        <EquipSlot slot="body" user={user} onSelect={setSelectedInventoryItem} />
                        <EquipSlot slot="special" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
-                    {/* Attributes Section at the very bottom */}
+                    {/* Attributes Section */}
                     <div className="grid grid-cols-3 gap-2 mt-auto">
                       {[
                         {l: 'Poder', v: '+12%', i: '⚔️'},
                         {l: 'Defesa', v: '+8%', i: '🛡️'},
                         {l: 'Sorte', v: '+5%', i: '🍀'}
                       ].map(s => (
-                        <div key={s.l} className="bg-black/30 border border-zinc-800/30 p-3 rounded-2xl text-center">
+                        <div key={s.l} className="bg-black/30 border border-zinc-800/30 p-2 md:p-3 rounded-2xl text-center">
                            <p className="text-[7px] text-zinc-600 uppercase font-black">{s.l}</p>
-                           <p className="text-[10px] font-black text-zinc-300">{s.v}</p>
+                           <p className="text-[9px] md:text-[10px] font-black text-zinc-300">{s.v}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                {/* Inventory Grid */}
+                {/* Inventory Grid - Increased spacing and fixed clipping */}
                 <div className="lg:col-span-7">
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pr-2 max-h-[600px] scrollbar-hide">
+                  <div className="grid grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 overflow-y-auto p-2 max-h-[650px] scrollbar-hide overflow-x-visible">
                     {filteredInventory.map((item, idx) => {
                       const isEquipped = Object.values(user.equipment).includes(item.id);
                       const rarity = RARITIES[item.rarity] || RARITIES.comum;
@@ -373,17 +373,17 @@ const App: React.FC = () => {
                           onClick={() => setSelectedInventoryItem(item)}
                           className={`group aspect-square relative rounded-[2rem] border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-1 ${rarity.color.split(' ')[1]} ${rarity.bg} ${isEquipped ? 'ring-2 ring-white/30' : ''}`}
                         >
-                          <span className="text-3xl group-hover:scale-110 transition-all">{item.icon}</span>
-                          <span className="text-[8px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors truncate max-w-[80%]">{item.name}</span>
+                          <span className="text-3xl md:text-4xl group-hover:scale-110 transition-all">{item.icon}</span>
+                          <span className="text-[8px] md:text-[9px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors truncate px-2 w-full text-center">{item.name}</span>
                           {item.quantity && item.quantity > 1 && (
-                            <div className="absolute top-2 right-2 bg-black/80 border border-zinc-700 px-2 py-0.5 rounded-lg text-[8px] font-black text-white">x{item.quantity}</div>
+                            <div className="absolute top-2 right-2 bg-black/80 border border-zinc-700 px-1.5 py-0.5 rounded-lg text-[8px] font-black text-white z-10">x{item.quantity}</div>
                           )}
-                          {isEquipped && <div className="absolute -bottom-2 bg-white text-black px-2 py-0.5 rounded-full text-[6px] font-black shadow-lg">EQUIPADO</div>}
+                          {isEquipped && <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-white text-black px-2 py-0.5 rounded-full text-[6px] font-black shadow-lg z-10 whitespace-nowrap">EQUIPADO</div>}
                         </div>
                       );
                     })}
                     {filteredInventory.length === 0 && (
-                      <div className="col-span-full py-20 border-2 border-dashed border-zinc-800 rounded-[3rem] text-center opacity-30 text-xs font-black uppercase tracking-widest">Nada encontrado</div>
+                      <div className="col-span-full py-20 border-2 border-dashed border-zinc-800 rounded-[3rem] text-center opacity-30 text-xs font-black uppercase tracking-widest">Vazio</div>
                     )}
                   </div>
                 </div>
@@ -488,14 +488,14 @@ const EquipSlot: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: In
   const rarity = item ? (RARITIES[item.rarity] || RARITIES.comum) : null;
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       <div 
         onClick={() => item && onSelect(item)}
-        className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer shadow-lg
-          ${item ? (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110 shadow-[0_0_15px_rgba(255,255,255,0.1)]') : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}
+        className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer shadow-lg
+          ${item ? (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110') : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}
         `}
       >
-        <span className="text-2xl">{item ? item.icon : icons[slot]}</span>
+        <span className="text-2xl md:text-3xl">{item ? item.icon : icons[slot]}</span>
         {item && <div className="absolute inset-0 rounded-2xl ring-2 ring-white/10" />}
       </div>
       <span className="text-[7px] font-black uppercase text-zinc-600 tracking-widest">{labels[slot]}</span>
