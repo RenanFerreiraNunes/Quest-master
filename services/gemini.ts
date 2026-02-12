@@ -1,11 +1,15 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Tenta inicializar apenas se a chave existir para evitar crash no carregamento do módulo
 const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return null;
-  return new GoogleGenAI({ apiKey });
+  try {
+    const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : null;
+    if (!apiKey) return null;
+    return new GoogleGenAI({ apiKey });
+  } catch (e) {
+    console.error("Erro ao inicializar Gemini:", e);
+    return null;
+  }
 };
 
 export const geminiService = {
