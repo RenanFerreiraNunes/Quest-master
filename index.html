@@ -60,7 +60,6 @@
           animation: float 4s ease-in-out infinite;
         }
 
-        /* Utility */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .glass-panel {
             background: rgba(24, 24, 27, 0.6);
@@ -69,6 +68,15 @@
         }
     </style>
     
+    <!-- IMPORTANTE: Polyfill para evitar erro de 'process is not defined' no ambiente de produção -->
+    <script>
+      window.process = {
+        env: {
+          API_KEY: "" // O valor será injetado pelo sistema de build ou mantido vazio se não configurado
+        }
+      };
+    </script>
+
     <script type="importmap">
 {
   "imports": {
@@ -84,6 +92,7 @@
 </head>
 <body class="bg-zinc-950 antialiased overflow-hidden">
     <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
+    <!-- O caminho deve ser relativo para funcionar em subpastas do GitHub Pages -->
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
