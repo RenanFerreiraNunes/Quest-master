@@ -225,8 +225,8 @@ const App: React.FC = () => {
     setIsCreatingCharacter(false);
   };
 
-  // Lógica de filtragem de inventário
-  const filteredInventory = user?.inventory.filter(item => {
+  // Lógica de filtragem de inventário corrigida (optional chaining)
+  const filteredInventory = user?.inventory?.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || 
                           item.description.toLowerCase().includes(inventorySearch.toLowerCase());
     const matchesCategory = inventoryCategory === 'all' || 
@@ -237,10 +237,11 @@ const App: React.FC = () => {
   }) || [];
 
   if (isCreatingCharacter) return <CharacterCreator onComplete={handleCharacterCreation} />;
+  
   if (!user) return (
     <div className="min-h-screen relative flex items-center justify-center p-4 bg-zinc-950">
       <ChromaGrid color="rgba(220, 38, 38, 0.1)" />
-      <div className="w-full max-w-md bg-zinc-900/40 backdrop-blur-2xl border border-zinc-800 p-10 rounded-[3rem] shadow-3xl text-center">
+      <div className="w-full max-w-md bg-zinc-900/40 backdrop-blur-2xl border border-zinc-800 p-10 rounded-[3rem] shadow-3xl text-center relative z-10">
         <h1 className="text-5xl font-rpg mb-10 text-white font-black uppercase tracking-tighter">QUEST<span className="text-red-600">MASTER</span></h1>
         <input type="email" placeholder="Email do Herói" className="w-full bg-zinc-800/50 border border-zinc-700 rounded-2xl p-4 text-white mb-4 text-center" value={email} onChange={e => setEmail(e.target.value)} />
         <button onClick={handleLogin} className="w-full bg-red-600 py-5 rounded-2xl font-black text-white uppercase tracking-[0.3em] text-xs">Entrar no Reino</button>
@@ -313,7 +314,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Filtros e Busca */}
                 <div className="flex flex-col md:flex-row gap-4 flex-1 max-w-2xl">
                   <div className="relative flex-1 group">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-500 transition-colors">🔍</span>
@@ -345,12 +345,10 @@ const App: React.FC = () => {
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                {/* Battle Card Section */}
                 <div className="lg:col-span-5 flex flex-col items-center">
                   <div className="relative w-full aspect-[4/5] bg-zinc-900/30 border border-zinc-800 rounded-[4rem] flex items-center justify-center p-12 overflow-hidden shadow-2xl">
                     <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
                     
-                    {/* Equipment Slots Grid */}
                     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-8">
                       <div className="col-start-2 flex items-center justify-center">
                         <EquipmentSlotComponent slot="head" user={user} onSelect={setSelectedInventoryItem} />
@@ -375,7 +373,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* List Section com Raridade */}
                 <div className="lg:col-span-7 space-y-6">
                   <div className="grid grid-cols-3 md:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto pr-4 scrollbar-hide">
                     {filteredInventory.map((item, idx) => {
@@ -392,7 +389,6 @@ const App: React.FC = () => {
                             ${isEquipped ? 'ring-2 ring-white/20' : ''}
                             ${item.rarity === 'lendario' ? 'animate-pulse' : ''}`}
                         >
-                          {/* Aura de Raridade */}
                           <div className={`absolute inset-0 rounded-3xl opacity-10 pointer-events-none transition-opacity group-hover:opacity-20 ${rarityConfig.bg}`} />
                           
                           <span className="text-4xl block group-hover:scale-110 transition-transform relative z-10">{item.icon}</span>
@@ -402,7 +398,6 @@ const App: React.FC = () => {
                             <span className="absolute top-2 right-2 text-[6px] bg-white text-black px-2 py-0.5 rounded-full font-black z-20">EQUIP</span>
                           )}
                           
-                          {/* Tag de Raridade */}
                           <span className={`absolute bottom-2 text-[6px] font-black uppercase tracking-tighter ${rarityConfig.color.split(' ')[0]}`}>
                             {item.rarity}
                           </span>
@@ -421,7 +416,6 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* Outras Abas (Quests, Campaign, Profile, etc) permanecem as mesmas do arquivo original */}
           {activeTab === 'quests' && (
             <div className="max-w-5xl mx-auto space-y-16">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -568,7 +562,6 @@ const App: React.FC = () => {
   );
 };
 
-// Helper Component for Equipment Slots in Inventory
 const EquipmentSlotComponent: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: InventoryItem) => void }> = ({ slot, user, onSelect }) => {
   const itemId = user.equipment[slot];
   const item = itemId ? SHOP_ITEMS.find(i => i.id === itemId) : null;
@@ -589,15 +582,24 @@ const EquipmentSlotComponent: React.FC<{ slot: EquipmentSlot, user: User, onSele
     special: '✨'
   };
 
+  const isLegendary = item?.rarity === 'lendario';
+
   return (
     <div 
       onClick={() => item && onSelect(item)}
-      className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer ${item ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse' : 'border-zinc-800 bg-zinc-950/50'}`}
+      className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer 
+        ${item 
+          ? (isLegendary 
+              ? 'animate-equip-legendary bg-amber-500/10' 
+              : 'animate-equip bg-indigo-500/10'
+            ) 
+          : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'
+        }`}
     >
       <span className="text-2xl">{item ? item.icon : icons[slot]}</span>
       <span className="text-[7px] font-black uppercase text-zinc-600 absolute -bottom-4">{labels[slot]}</span>
       {item && (
-        <div className="absolute inset-0 rounded-2xl ring-2 ring-indigo-400/20" />
+        <div className={`absolute inset-0 rounded-2xl ring-2 ${isLegendary ? 'ring-amber-400/20' : 'ring-indigo-400/20'}`} />
       )}
     </div>
   );
