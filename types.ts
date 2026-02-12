@@ -48,8 +48,6 @@ export interface InventoryItem {
   description: string;
   lore?: string;
   type: ItemType;
-  // Added missing rarity property to resolve TypeScript errors in constants.tsx and App.tsx
-  rarity: Rarity;
   slot?: EquipmentSlot;
   statBoost?: string;
   boostValue?: number;
