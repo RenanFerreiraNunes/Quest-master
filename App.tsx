@@ -66,7 +66,6 @@ const App: React.FC = () => {
   const updateAndSave = useCallback((updated: User) => {
     if (updated.isBroken && updated.hp >= updated.maxHp) {
       updated.isBroken = false;
-      alert("✨ Sua alma foi restaurada!");
     }
 
     if (updated.hp <= 0 && !updated.isBroken) {
@@ -74,7 +73,6 @@ const App: React.FC = () => {
       updated.hp = Math.floor(updated.maxHp * 0.2); 
       updated.gold = Math.max(0, updated.gold - penalty);
       updated.tasks = updated.tasks.map(t => ({ ...t, startTime: null, isPaused: false, accumulatedTimeMs: 0 })); 
-      alert(`☠️ Você sucumbiu! Perdeu ${penalty}G.`);
     }
     setUser(updated);
     db.saveUser(updated);
@@ -85,7 +83,6 @@ const App: React.FC = () => {
     setTimeout(() => setDamageEffect(false), 500);
   };
 
-  // Lógica de Compra com Stacking
   const handlePurchase = (item: InventoryItem) => {
     if (!user) return;
     const isStackable = item.type === 'buff';
@@ -139,12 +136,25 @@ const App: React.FC = () => {
 
   const handleEquipItem = (item: InventoryItem) => {
     if (!user || !item.slot) return;
-    const currentEquipped = user.equipment[item.slot];
-    const newEquipment = { ...user.equipment, [item.slot]: currentEquipped === item.id ? null : item.id };
+    const currentEquippedId = user.equipment[item.slot];
+    
+    // Se clicar no que já está equipado, desequipa
+    const newEquipment = { 
+      ...user.equipment, 
+      [item.slot]: currentEquippedId === item.id ? null : item.id 
+    };
+
+    // Validação extra: se for um acessório, garantir que não equipa o mesmo item em dois slots
+    if (item.slot === 'acc1' || item.slot === 'acc2') {
+      const otherSlot = item.slot === 'acc1' ? 'acc2' : 'acc1';
+      if (newEquipment[otherSlot] === item.id) {
+        newEquipment[otherSlot] = null; // Remove do outro slot
+      }
+    }
+
     updateAndSave({ ...user, equipment: newEquipment });
   };
 
-  // Funções de Task
   const handleStartTask = (taskId: string) => {
     if (!user || user.isBroken) return;
     updateAndSave({
@@ -238,47 +248,46 @@ const App: React.FC = () => {
     <ClickSpark>
       <div className={`h-screen flex flex-col md:flex-row text-zinc-100 ${currentTheme.bg} transition-all duration-500 overflow-hidden`}>
         {/* Sidebar */}
-        <aside className="w-full md:w-80 bg-zinc-900/40 border-r border-zinc-800/50 p-8 flex flex-col h-full overflow-y-auto scrollbar-hide">
-          <div className="flex flex-col items-center mb-12 gap-8">
+        <aside className="w-full md:w-80 bg-zinc-900/40 border-r border-zinc-800/50 p-6 flex flex-col h-full overflow-y-auto scrollbar-hide">
+          <div className="flex flex-col items-center mb-8 gap-6">
             <div className="relative group">
-              <div className={`w-40 h-40 rounded-[4rem] bg-zinc-950 border-2 border-zinc-800 flex items-center justify-center shadow-3xl overflow-hidden ${damageEffect ? 'animate-shake' : ''}`}>
-                <HeroAvatar appearance={user.appearance} user={user} size={130} />
+              <div className={`w-32 h-32 rounded-[3.5rem] bg-zinc-950 border-2 border-zinc-800 flex items-center justify-center shadow-3xl overflow-hidden ${damageEffect ? 'animate-shake' : ''}`}>
+                <HeroAvatar appearance={user.appearance} user={user} size={100} />
               </div>
-              <div className={`absolute -top-3 -right-3 w-12 h-12 bg-${currentTheme.primary} rounded-2xl border-4 border-zinc-900 flex items-center justify-center text-xl shadow-2xl`}>
+              <div className={`absolute -top-2 -right-2 w-10 h-10 bg-${currentTheme.primary} rounded-2xl border-4 border-zinc-900 flex items-center justify-center text-xl shadow-2xl`}>
                 {user.isBroken ? '💀' : user.avatar}
               </div>
             </div>
-            <div className="text-center space-y-2">
-              <h1 className="font-rpg text-3xl font-black tracking-tight">{user.nickname}</h1>
-              <div className={`px-4 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] uppercase font-black tracking-widest ${currentTheme.text}`}>
-                {user.charClass} • Lvl {user.level}
+            <div className="text-center">
+              <h1 className="font-rpg text-2xl font-black tracking-tight">{user.nickname}</h1>
+              <div className={`px-3 py-1 mt-1 rounded-full bg-zinc-900 border border-zinc-800 text-[8px] uppercase font-black tracking-widest ${currentTheme.text}`}>
+                Lvl {user.level} {user.charClass}
               </div>
             </div>
           </div>
           
-          <div className="space-y-8 flex-1">
+          <div className="space-y-6 flex-1">
             <StatsBar label="Vida" current={user.hp} max={user.maxHp} color={user.isBroken ? "bg-zinc-700" : (user.hp < 30 ? "bg-red-800" : "bg-red-600")} icon="❤️" />
-            <StatsBar label="Experiência" current={user.xp} max={user.level * 200} color={`bg-${currentTheme.primary}`} icon="✨" />
-            <div className="bg-zinc-800/30 p-6 rounded-[2.5rem] border border-zinc-700/30 flex justify-between items-center shadow-inner">
+            <StatsBar label="XP" current={user.xp} max={user.level * 200} color={`bg-${currentTheme.primary}`} icon="✨" />
+            <div className="bg-zinc-800/30 p-4 rounded-[2rem] border border-zinc-700/30 flex justify-between items-center">
               <div className="flex flex-col">
-                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Tesouro</span>
-                <span className="text-amber-400 font-black text-2xl">💰 {user.gold}</span>
+                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Ouro</span>
+                <span className="text-amber-400 font-black text-xl">💰 {user.gold}</span>
               </div>
-              <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-xl">🏦</div>
             </div>
           </div>
           
-          <div className="mt-8 space-y-4">
-            <p className="text-[10px] italic text-zinc-600 text-center px-4 leading-relaxed">"{aiMessage}"</p>
-            <button onClick={() => { db.logout(); window.location.reload(); }} className="w-full py-4 rounded-2xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-600 hover:text-red-500 tracking-[0.3em] transition-all">Sair</button>
+          <div className="mt-6 space-y-4">
+            <p className="text-[10px] italic text-zinc-600 text-center leading-relaxed">"{aiMessage}"</p>
+            <button onClick={() => { db.logout(); window.location.reload(); }} className="w-full py-4 rounded-2xl border border-zinc-800 text-[8px] font-black uppercase text-zinc-600 hover:text-red-500 tracking-[0.3em] transition-all">Sair</button>
           </div>
         </aside>
 
         {/* Main Area */}
-        <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto relative p-8 md:p-14 z-10 scrollbar-hide">
+        <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto relative p-6 md:p-10 z-10 scrollbar-hide">
           <ChromaGrid scrollOffset={scrollPos} color={currentTheme.primary === 'red-600' ? 'rgba(220, 38, 38, 0.05)' : 'rgba(255,255,255,0.03)'} />
           
-          <nav className="flex items-center gap-6 mb-16 overflow-x-auto pb-6 sticky top-0 z-40 bg-transparent backdrop-blur-md">
+          <nav className="flex items-center gap-4 mb-10 overflow-x-auto pb-4 sticky top-0 z-40 bg-transparent backdrop-blur-md">
             {[
               {id:'quests',l:'Missões',i:'⚔️'},
               {id:'campaign',l:'História',i:'🗺️'},
@@ -287,68 +296,74 @@ const App: React.FC = () => {
               {id:'inventory',l:'Mochila',i:'🎒'},
               {id:'profile',l:'Herói',i:'🎭'}
             ].map(tab=>(
-              <button key={tab.id} onClick={()=>setActiveTab(tab.id as any)} className={`px-10 py-5 rounded-[2.5rem] text-[10px] font-black uppercase tracking-[0.4em] transition-all flex items-center gap-4 shrink-0 ${activeTab===tab.id?'bg-white text-black shadow-3xl scale-105':'bg-zinc-900/50 text-zinc-500 border border-zinc-800 hover:bg-zinc-800'}`}>
+              <button key={tab.id} onClick={()=>setActiveTab(tab.id as any)} className={`px-6 py-4 rounded-[2rem] text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center gap-3 shrink-0 ${activeTab===tab.id?'bg-white text-black shadow-3xl scale-105':'bg-zinc-900/50 text-zinc-500 border border-zinc-800 hover:bg-zinc-800'}`}>
                 <span>{tab.i}</span> {tab.l}
               </button>
             ))}
           </nav>
 
           {activeTab === 'inventory' && (
-            <div className="max-w-6xl mx-auto space-y-12 animate-in slide-in-from-bottom-8 duration-700">
-              <header className="flex justify-between items-end">
-                <div className="space-y-4">
-                  <h2 className="text-6xl font-rpg uppercase">Seu <span className="text-indigo-500">Espólio</span></h2>
-                  <div className="flex gap-4">
-                    <span className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-black text-zinc-500 uppercase">Espaços: {user.inventory.length}/{user.inventoryCapacity}</span>
-                  </div>
+            <div className="max-w-6xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-700">
+              <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div className="space-y-2">
+                  <h2 className="text-5xl font-rpg uppercase">Seu <span className="text-indigo-500">Espólio</span></h2>
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Espaços: {user.inventory.length}/{user.inventoryCapacity}</p>
                 </div>
-                <div className="flex gap-4">
-                   <input type="text" placeholder="Filtrar itens..." value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl px-6 py-4 text-xs font-bold w-64 focus:border-indigo-500 outline-none" />
+                <div className="flex gap-4 w-full md:w-auto">
+                   <input type="text" placeholder="Filtrar..." value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl px-6 py-3 text-xs font-bold flex-1 md:w-64 focus:border-indigo-500 outline-none" />
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-                {/* Character Profile Card */}
-                <div className="lg:col-span-5 flex flex-col gap-8">
-                  <div className="relative aspect-[3/4] bg-zinc-900/40 rounded-[5rem] border-2 border-zinc-800 flex flex-col items-center p-12 overflow-hidden shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-50" />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                {/* Fixed Character Profile Card Layout */}
+                <div className="lg:col-span-5">
+                  <div className="relative aspect-[3/4] bg-zinc-900/40 rounded-[4rem] border-2 border-zinc-800 flex flex-col shadow-2xl overflow-hidden p-8">
+                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-30" />
                     
-                    {/* Equipment Slots Socketed */}
-                    <div className="absolute inset-0 p-10 grid grid-cols-3 grid-rows-3 pointer-events-none">
-                      <div className="col-start-2 flex justify-center"><EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} /></div>
-                      <div className="row-start-2 col-start-1 flex items-center"><EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} /></div>
-                      <div className="row-start-2 col-start-3 flex items-center justify-end"><EquipSlot slot="acc2" user={user} onSelect={setSelectedInventoryItem} /></div>
-                      <div className="row-start-3 col-start-2 flex justify-center items-end"><EquipSlot slot="body" user={user} onSelect={setSelectedInventoryItem} /></div>
-                      <div className="row-start-3 col-start-3 flex justify-end items-end"><EquipSlot slot="special" user={user} onSelect={setSelectedInventoryItem} /></div>
+                    {/* Header Area Slots */}
+                    <div className="flex justify-center mb-4">
+                      <EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
-                    <div className="mt-12 mb-auto z-10 flex flex-col items-center">
-                       <div className="w-56 h-56 bg-zinc-950/60 rounded-full border border-zinc-800 flex items-center justify-center shadow-inner relative">
-                          <HeroAvatar appearance={user.appearance} user={user} size={180} />
-                          <div className="absolute -bottom-4 bg-zinc-900 border border-zinc-700 px-6 py-2 rounded-full text-xs font-black font-rpg">LEVEL {user.level}</div>
-                       </div>
+                    {/* Middle Area Avatar & Accessories */}
+                    <div className="flex items-center justify-between flex-1 mb-4">
+                      <EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
+                      
+                      <div className="relative flex-1 flex justify-center">
+                        <div className="w-48 h-48 bg-zinc-950/60 rounded-full border border-zinc-800/50 flex items-center justify-center shadow-inner relative">
+                          <HeroAvatar appearance={user.appearance} user={user} size={150} />
+                          <div className="absolute -bottom-3 bg-zinc-900 border border-zinc-700 px-4 py-1 rounded-full text-[10px] font-black font-rpg shadow-xl">LEVEL {user.level}</div>
+                        </div>
+                      </div>
+
+                      <EquipSlot slot="acc2" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
-                    <div className="w-full space-y-4 z-10">
-                       <div className="grid grid-cols-3 gap-2">
-                          {[
-                            {l: 'Poder', v: '+12%', i: '⚔️'},
-                            {l: 'Defesa', v: '+8%', i: '🛡️'},
-                            {l: 'Sorte', v: '+5%', i: '🍀'}
-                          ].map(s => (
-                            <div key={s.l} className="bg-black/40 border border-zinc-800/50 p-4 rounded-3xl text-center">
-                               <p className="text-[7px] text-zinc-600 uppercase font-black">{s.l}</p>
-                               <p className="text-sm font-black text-zinc-200">{s.v}</p>
-                            </div>
-                          ))}
-                       </div>
+                    {/* Bottom Slots */}
+                    <div className="flex justify-center gap-10 mb-8">
+                       <EquipSlot slot="body" user={user} onSelect={setSelectedInventoryItem} />
+                       <EquipSlot slot="special" user={user} onSelect={setSelectedInventoryItem} />
+                    </div>
+
+                    {/* Attributes Section at the very bottom */}
+                    <div className="grid grid-cols-3 gap-2 mt-auto">
+                      {[
+                        {l: 'Poder', v: '+12%', i: '⚔️'},
+                        {l: 'Defesa', v: '+8%', i: '🛡️'},
+                        {l: 'Sorte', v: '+5%', i: '🍀'}
+                      ].map(s => (
+                        <div key={s.l} className="bg-black/30 border border-zinc-800/30 p-3 rounded-2xl text-center">
+                           <p className="text-[7px] text-zinc-600 uppercase font-black">{s.l}</p>
+                           <p className="text-[10px] font-black text-zinc-300">{s.v}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
 
                 {/* Inventory Grid */}
                 <div className="lg:col-span-7">
-                  <div className="grid grid-cols-4 md:grid-cols-5 gap-4 overflow-y-auto pr-2 max-h-[700px] scrollbar-hide">
+                  <div className="grid grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pr-2 max-h-[600px] scrollbar-hide">
                     {filteredInventory.map((item, idx) => {
                       const isEquipped = Object.values(user.equipment).includes(item.id);
                       const rarity = RARITIES[item.rarity] || RARITIES.comum;
@@ -356,19 +371,19 @@ const App: React.FC = () => {
                         <div 
                           key={`${item.id}-${idx}`}
                           onClick={() => setSelectedInventoryItem(item)}
-                          className={`group aspect-square relative rounded-3xl border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-1 ${rarity.color.split(' ')[1]} ${rarity.bg} ${isEquipped ? 'ring-2 ring-white/30' : ''}`}
+                          className={`group aspect-square relative rounded-[2rem] border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-1 ${rarity.color.split(' ')[1]} ${rarity.bg} ${isEquipped ? 'ring-2 ring-white/30' : ''}`}
                         >
-                          <span className="text-4xl group-hover:scale-110 transition-all">{item.icon}</span>
-                          <span className={`text-[7px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors`}>{item.name.split(' ')[0]}</span>
+                          <span className="text-3xl group-hover:scale-110 transition-all">{item.icon}</span>
+                          <span className="text-[8px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors truncate max-w-[80%]">{item.name}</span>
                           {item.quantity && item.quantity > 1 && (
                             <div className="absolute top-2 right-2 bg-black/80 border border-zinc-700 px-2 py-0.5 rounded-lg text-[8px] font-black text-white">x{item.quantity}</div>
                           )}
-                          {isEquipped && <div className="absolute -bottom-2 bg-white text-black px-2 py-0.5 rounded-full text-[6px] font-black">EQUIP</div>}
+                          {isEquipped && <div className="absolute -bottom-2 bg-white text-black px-2 py-0.5 rounded-full text-[6px] font-black shadow-lg">EQUIPADO</div>}
                         </div>
                       );
                     })}
                     {filteredInventory.length === 0 && (
-                      <div className="col-span-full py-20 border-2 border-dashed border-zinc-800 rounded-[3rem] text-center opacity-30">Vazio</div>
+                      <div className="col-span-full py-20 border-2 border-dashed border-zinc-800 rounded-[3rem] text-center opacity-30 text-xs font-black uppercase tracking-widest">Nada encontrado</div>
                     )}
                   </div>
                 </div>
@@ -378,11 +393,11 @@ const App: React.FC = () => {
 
           {activeTab === 'shop' && <Shop user={user} onPurchase={handlePurchase} />}
           {activeTab === 'quests' && (
-            <div className="max-w-4xl mx-auto space-y-16">
+            <div className="max-w-4xl mx-auto space-y-12">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {!user.isBroken && (
-                  <button onClick={()=>setShowQuestCreator(true)} className="bg-zinc-900/30 border-4 border-dashed border-zinc-800 p-10 rounded-[3.5rem] flex items-center gap-6 hover:border-red-600/40 transition-all group">
-                    <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-2xl group-hover:scale-110 transition-all">＋</div>
+                  <button onClick={()=>setShowQuestCreator(true)} className="bg-zinc-900/30 border-4 border-dashed border-zinc-800 p-10 rounded-[3rem] flex items-center gap-6 hover:border-red-600/40 transition-all group">
+                    <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center text-2xl group-hover:scale-110 transition-all">＋</div>
                     <span className="text-xs font-black uppercase tracking-[0.4em] text-zinc-500 group-hover:text-zinc-200">Nova Missão</span>
                   </button>
                 )}
@@ -392,20 +407,20 @@ const App: React.FC = () => {
                 updateAndSave({...user, tasks: [task, ...user.tasks]});
                 setShowQuestCreator(false);
               }} />}
-              <div className="space-y-8">
-                 <h3 className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700">Contratos Pendentes</h3>
+              <div className="space-y-6">
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700">Mural de Contratos</h3>
                  {user.tasks.filter(t => !t.done).map(task => {
                    const config = RARITIES[task.rarity] || RARITIES.comum;
                    return (
-                     <div key={task.id} className={`p-10 rounded-[4rem] border-2 ${config.color} ${config.bg} shadow-2xl flex flex-col md:flex-row items-center gap-8`}>
-                        <div className="flex-1 space-y-4">
-                           <h3 className="text-4xl font-rpg font-black">{task.title}</h3>
+                     <div key={task.id} className={`p-8 rounded-[2.5rem] border-2 ${config.color} ${config.bg} shadow-xl flex flex-col md:flex-row items-center gap-6`}>
+                        <div className="flex-1 space-y-2">
+                           <h3 className="text-3xl font-rpg font-black">{task.title}</h3>
                            <div className="flex gap-4">
-                              <span className="text-amber-500 font-bold text-sm">💰 {config.gold}G</span>
-                              <span className="text-indigo-400 font-bold text-sm">✨ {config.xp}XP</span>
+                              <span className="text-amber-500 font-bold text-xs uppercase tracking-widest">💰 {config.gold} Ouro</span>
+                              <span className="text-indigo-400 font-bold text-xs uppercase tracking-widest">✨ {config.xp} XP</span>
                            </div>
                         </div>
-                        <button onClick={()=>handleStartTask(task.id)} className="px-12 py-5 bg-white text-black rounded-3xl font-black uppercase tracking-widest hover:scale-105 transition-all">Iniciar</button>
+                        <button onClick={()=>handleStartTask(task.id)} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all text-[10px]">Iniciar</button>
                      </div>
                    );
                  })}
@@ -415,24 +430,24 @@ const App: React.FC = () => {
 
           {activeTab === 'profile' && (
             <div className="max-w-3xl mx-auto space-y-12">
-               <h2 className="text-5xl font-rpg text-center">Refúgio do <span className="text-red-500">Herói</span></h2>
-               <div className="bg-zinc-900/40 p-12 rounded-[4rem] border border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-12">
+               <h2 className="text-5xl font-rpg text-center uppercase">Refúgio do <span className="text-red-500">Herói</span></h2>
+               <div className="bg-zinc-900/40 p-10 rounded-[4rem] border border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-8">
-                     <div className="space-y-4">
+                     <div className="space-y-3">
                         <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Codinome</label>
-                        <input type="text" value={user.nickname} onChange={e => updateAndSave({...user, nickname: e.target.value})} className="w-full bg-zinc-950 p-6 rounded-3xl border border-zinc-800 font-bold text-white focus:border-red-600 outline-none" />
+                        <input type="text" value={user.nickname} onChange={e => updateAndSave({...user, nickname: e.target.value})} className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 font-bold text-white focus:border-red-600 outline-none" />
                      </div>
                      <div className="space-y-4">
-                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Atributos Primários</label>
+                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Status Atuais</label>
                         <div className="space-y-4">
                            <StatsBar label="Força" current={85} max={100} color="bg-orange-600" />
-                           <StatsBar label="Mente" current={40} max={100} color="bg-indigo-600" />
+                           <StatsBar label="Destreza" current={40} max={100} color="bg-indigo-600" />
                         </div>
                      </div>
                   </div>
                   <div className="flex items-center justify-center">
-                     <div className="w-64 h-64 bg-zinc-950 rounded-[4rem] border-2 border-zinc-800 flex items-center justify-center shadow-inner relative">
-                        <HeroAvatar appearance={user.appearance} user={user} size={200} />
+                     <div className="w-56 h-56 bg-zinc-950 rounded-[3rem] border-2 border-zinc-800 flex items-center justify-center shadow-inner relative">
+                        <HeroAvatar appearance={user.appearance} user={user} size={180} />
                      </div>
                   </div>
                </div>
@@ -469,18 +484,21 @@ const EquipSlot: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: In
   const itemId = user.equipment[slot];
   const item = itemId ? SHOP_ITEMS.find(i => i.id === itemId) : null;
   const icons: Record<EquipmentSlot, string> = { head: '👤', body: '👕', acc1: '💍', acc2: '💍', special: '✨' };
+  const labels: Record<EquipmentSlot, string> = { head: 'Cabeça', body: 'Corpo', acc1: 'Aces. 1', acc2: 'Aces. 2', special: 'Esp.' };
   const rarity = item ? (RARITIES[item.rarity] || RARITIES.comum) : null;
 
   return (
-    <div 
-      onClick={() => item && onSelect(item)}
-      className={`w-20 h-20 rounded-[1.8rem] border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer pointer-events-auto shadow-xl
-        ${item ? (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110') : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}
-      `}
-    >
-      <span className="text-3xl">{item ? item.icon : icons[slot]}</span>
-      <span className="text-[6px] font-black uppercase text-zinc-600 absolute -bottom-5 tracking-widest">{slot}</span>
-      {item && <div className="absolute inset-0 rounded-[1.8rem] ring-2 ring-white/10" />}
+    <div className="flex flex-col items-center gap-1">
+      <div 
+        onClick={() => item && onSelect(item)}
+        className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer shadow-lg
+          ${item ? (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110 shadow-[0_0_15px_rgba(255,255,255,0.1)]') : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}
+        `}
+      >
+        <span className="text-2xl">{item ? item.icon : icons[slot]}</span>
+        {item && <div className="absolute inset-0 rounded-2xl ring-2 ring-white/10" />}
+      </div>
+      <span className="text-[7px] font-black uppercase text-zinc-600 tracking-widest">{labels[slot]}</span>
     </div>
   );
 };
