@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Rarity, Difficulty } from '../types';
-import { RARITIES, DIFFICULTIES } from '../constants';
+import { RARITIES, DIFFICULTIES, BASE_MIN_TIME_MINUTES } from '../constants';
 
 interface QuestStepperProps {
-  onComplete: (data: { title: string; rarity: Rarity; difficulty: Difficulty; duration: number }) => void;
+  onComplete: (data: { title: string; rarity: Rarity; difficulty: Difficulty; duration: number; minDurationSeconds: number }) => void;
   onCancel: () => void;
 }
 
@@ -15,6 +15,20 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
   const [difficulty, setDifficulty] = useState<Difficulty>('facil');
   const [duration, setDuration] = useState(5);
 
+  // Cálculo dinâmico do tempo mínimo exigido pelo sistema
+  // Fórmula: Base (5m) * Multiplicador Dificuldade * Multiplicador Raridade
+  const minRequiredMinutes = Math.ceil(
+    BASE_MIN_TIME_MINUTES * 
+    DIFFICULTIES[difficulty].multiplier * 
+    RARITIES[rarity].multiplier
+  );
+
+  useEffect(() => {
+    if (duration < minRequiredMinutes) {
+      setDuration(minRequiredMinutes);
+    }
+  }, [minRequiredMinutes, duration]);
+
   const steps = [
     { n: 1, label: 'Alvo', icon: '🎯' },
     { n: 2, label: 'Perigo', icon: '🐉' },
@@ -24,7 +38,13 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
   const handleNext = () => {
     if (step === 1 && !title) return;
     if (step < 3) setStep(step + 1);
-    else onComplete({ title, rarity, difficulty, duration });
+    else onComplete({ 
+      title, 
+      rarity, 
+      difficulty, 
+      duration, 
+      minDurationSeconds: duration * 60 
+    });
   };
 
   return (
@@ -34,7 +54,6 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
         <button onClick={onCancel} className="text-zinc-600 hover:text-white">✕</button>
       </div>
 
-      {/* Progress Line */}
       <div className="flex items-center justify-between mb-12 relative px-4">
         <div className="absolute top-1/2 left-0 w-full h-0.5 bg-zinc-800 -translate-y-1/2 z-0" />
         {steps.map((s) => (
@@ -47,7 +66,6 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
         ))}
       </div>
 
-      {/* Step Content */}
       <div className="min-h-[200px] flex flex-col justify-center">
         {step === 1 && (
           <div className="space-y-6 animate-in slide-in-from-right-4">
@@ -92,14 +110,22 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
         )}
 
         {step === 3 && (
-          <div className="space-y-6 animate-in slide-in-from-right-4">
+          <div className="space-y-6 animate-in slide-in-from-right-4 text-center">
             <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Duração da Jornada (Minutos)</label>
-            <div className="flex items-center gap-6">
-               <button onClick={() => setDuration(Math.max(1, duration - 5))} className="w-12 h-12 bg-zinc-800 rounded-xl font-black text-xl hover:bg-zinc-700">-</button>
-               <span className="text-5xl font-black font-mono flex-1 text-center">{duration}</span>
+            <div className="flex items-center gap-6 mt-4">
+               <button 
+                onClick={() => setDuration(Math.max(minRequiredMinutes, duration - 5))} 
+                className={`w-12 h-12 rounded-xl font-black text-xl transition-all ${duration <= minRequiredMinutes ? 'bg-zinc-900 text-zinc-700' : 'bg-zinc-800 text-white hover:bg-zinc-700'}`}
+                disabled={duration <= minRequiredMinutes}
+               >-</button>
+               <span className="text-5xl font-black font-mono flex-1">{duration}</span>
                <button onClick={() => setDuration(duration + 5)} className="w-12 h-12 bg-zinc-800 rounded-xl font-black text-xl hover:bg-zinc-700">+</button>
             </div>
-            <p className="text-xs text-zinc-500 text-center">Quanto mais tempo, maior a recompensa de foco.</p>
+            
+            <div className="mt-8 p-4 bg-red-600/5 border border-red-600/20 rounded-2xl">
+               <h5 className="text-[10px] font-black uppercase text-red-500 tracking-widest mb-1">Esforço Mínimo Exigido</h5>
+               <p className="text-zinc-400 text-xs">Para esta raridade e dificuldade, o Oráculo exige pelo menos <strong>{minRequiredMinutes} minutos</strong> de foco contínuo.</p>
+            </div>
           </div>
         )}
       </div>

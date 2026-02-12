@@ -2,12 +2,13 @@
 import { Rarity, RarityConfig, InventoryItem, Difficulty, CharacterClass, Skill, CampaignMission } from './types';
 
 export const BASE_INVENTORY_CAPACITY = 12;
+export const BASE_MIN_TIME_MINUTES = 5;
 
 export const RARITIES: Record<Rarity, RarityConfig> = {
-  comum: { xp: 15, gold: 5, color: "text-zinc-400 border-zinc-700", bg: "bg-zinc-900/50", shadow: "" },
-  raro: { xp: 35, gold: 15, color: "text-blue-400 border-blue-500/50", bg: "bg-blue-900/10", shadow: "shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)]" },
-  epico: { xp: 80, gold: 50, color: "text-purple-400 border-purple-500/50", bg: "bg-purple-900/10", shadow: "shadow-[0_0_20px_-3px_rgba(168,85,247,0.4)]" },
-  lendario: { xp: 200, gold: 150, color: "text-amber-400 border-amber-500/50", bg: "bg-amber-900/10", shadow: "shadow-[0_0_25px_-3px_rgba(245,158,11,0.5)]" },
+  comum: { xp: 15, gold: 5, color: "text-zinc-400 border-zinc-700", bg: "bg-zinc-900/50", shadow: "", multiplier: 1.0 },
+  raro: { xp: 35, gold: 15, color: "text-blue-400 border-blue-500/50", bg: "bg-blue-900/10", shadow: "shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)]", multiplier: 1.5 },
+  epico: { xp: 80, gold: 50, color: "text-purple-400 border-purple-500/50", bg: "bg-purple-900/10", shadow: "shadow-[0_0_20px_-3px_rgba(168,85,247,0.4)]", multiplier: 2.5 },
+  lendario: { xp: 200, gold: 150, color: "text-amber-400 border-amber-500/50", bg: "bg-amber-900/10", shadow: "shadow-[0_0_25px_-3px_rgba(245,158,11,0.5)]", multiplier: 5.0 },
 };
 
 export const DIFFICULTIES: Record<Difficulty, { label: string, multiplier: number, color: string }> = {

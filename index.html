@@ -17,6 +17,18 @@
         .font-rpg {
             font-family: 'Cinzel', serif;
         }
+        
+        @keyframes shake {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 80% { transform: translate3d(2px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .animate-shake {
+          animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -27,95 +39,22 @@
             background: #27272a;
             border-radius: 10px;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #3f3f46;
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-
-        @keyframes bg-shift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-
-        @keyframes equip-pop {
-          0% { transform: scale(1); filter: brightness(1); }
-          50% { transform: scale(1.1); filter: brightness(1.8); }
-          100% { transform: scale(1); filter: brightness(1); }
-        }
-
-        @keyframes neon-pulse-comum {
-          0%, 100% { box-shadow: 0 0 5px rgba(161, 161, 170, 0.2); }
-          50% { box-shadow: 0 0 20px rgba(161, 161, 170, 0.6); }
-        }
-        @keyframes neon-pulse-raro {
-          0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.3); }
-          50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.8); }
-        }
-        @keyframes neon-pulse-epico {
-          0%, 100% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.4); }
-          50% { box-shadow: 0 0 45px rgba(168, 85, 247, 0.9); }
-        }
-        @keyframes neon-pulse-lendario {
-          0%, 100% { box-shadow: 0 0 15px rgba(251, 191, 36, 0.5); }
-          50% { box-shadow: 0 0 60px rgba(251, 191, 36, 1); }
-        }
-
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-
-        @keyframes float-up-red {
-          0% { transform: translateY(0); opacity: 1; }
-          100% { transform: translateY(-40px); opacity: 0; }
-        }
-
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
-        }
-
-        .animate-equip {
-          animation: equip-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-
-        .animate-neon-comum { animation: neon-pulse-comum 0.5s ease-out; }
-        .animate-neon-raro { animation: neon-pulse-raro 0.5s ease-out; }
-        .animate-neon-epico { animation: neon-pulse-epico 0.5s ease-out; }
-        .animate-neon-lendario { animation: neon-pulse-lendario 0.5s ease-out; }
-
-        .animate-float-up-red {
-          animation: float-up-red 0.8s ease-out forwards;
-        }
-
-        .hero-float {
-          animation: float 4s ease-in-out infinite;
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
-    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "vite": "https://esm.sh/vite@^7.3.1"
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4"
   }
 }
 </script>
 </head>
 <body class="bg-zinc-950 text-zinc-100 antialiased overflow-hidden">
     <div id="root"></div>
-    <!-- Vite gerencia o carregamento do script automaticamente -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

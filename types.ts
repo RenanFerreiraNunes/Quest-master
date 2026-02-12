@@ -35,8 +35,12 @@ export interface Task {
   rarity: Rarity;
   difficulty: Difficulty;
   durationMinutes: number;
+  minDurationSeconds: number;
   startTime: number | null;
+  accumulatedTimeMs: number; 
+  isPaused: boolean;
   done: boolean;
+  doneAt?: number;
   createdAt: number;
   activeSkillApplied?: string;
 }
@@ -54,7 +58,7 @@ export interface InventoryItem {
   icon: string;
   themeClass?: string; 
   isAnimated?: boolean;
-  quantity?: number; // Suporte para stack
+  quantity?: number; 
 }
 
 export interface CampaignMission {
@@ -80,6 +84,7 @@ export interface User {
   gold: number;
   hp: number;
   maxHp: number;
+  isBroken: boolean; // Estado de exaustão crítica
   inventoryCapacity: number;
   activeTheme: string; 
   tasks: Task[];
@@ -96,4 +101,5 @@ export interface RarityConfig {
   color: string;
   bg: string;
   shadow: string;
+  multiplier: number; 
 }
