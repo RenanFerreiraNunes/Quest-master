@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { SHOP_ITEMS } from '../constants';
+import { SHOP_ITEMS, RARITIES } from '../constants';
 import { User, InventoryItem, ItemType, EquipmentSlot } from '../types';
 import ItemDetailsModal from './ItemDetailsModal';
 
@@ -32,112 +32,69 @@ const Shop: React.FC<ShopProps> = ({ user, onPurchase }) => {
     }
   };
 
-  const getComparison = (item: InventoryItem) => {
-    if (item.type !== 'equipment' || !item.slot) return null;
-    
-    const equippedId = user.equipment[item.slot];
-    const equippedItem = equippedId ? SHOP_ITEMS.find(i => i.id === equippedId) : null;
-    
-    if (!equippedItem && !item.statBoost) return null;
-
-    const currentVal = equippedItem?.boostValue || 0;
-    const newVal = item.boostValue || 0;
-    const diff = newVal - currentVal;
-
-    // Fix: Updated return keys to match the usage in JSX below (currentVal and newVal)
-    return {
-      currentVal,
-      newVal,
-      diff,
-      statName: item.statBoost || equippedItem?.statBoost || 'Status'
-    };
-  };
-
   return (
-    <div className="space-y-10">
-      <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide">
+    <div className="space-y-12 animate-in fade-in duration-500">
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
         {categories.map(cat => (
           <button 
             key={cat.id} 
             onClick={() => setActiveCategory(cat.id)}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shrink-0 transition-all ${activeCategory === cat.id ? 'bg-white text-black shadow-xl scale-105' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}
+            className={`px-10 py-5 rounded-3xl text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-4 shrink-0 transition-all ${activeCategory === cat.id ? 'bg-white text-black shadow-3xl scale-105' : 'bg-zinc-900/50 text-zinc-500 border border-zinc-800 hover:bg-zinc-800'}`}
           >
             <span>{cat.icon}</span> {cat.label}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredItems.map((item) => {
           const canAfford = user.gold >= item.price;
-          const alreadyHas = user.inventory.some(i => i.id === item.id);
-          const comp = getComparison(item);
+          const userItem = user.inventory.find(i => i.id === item.id);
+          const alreadyHasNonStackable = userItem && item.type !== 'buff';
           const isSelected = selectedItem?.id === item.id;
           const isRecentlyPurchased = purchasedId === item.id;
+          const rarity = RARITIES[item.rarity] || RARITIES.comum;
 
           return (
             <div 
               key={item.id}
               onClick={() => setSelectedItem(item)}
-              className={`group relative bg-zinc-950 border-2 p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] flex flex-col justify-between transition-all shadow-lg cursor-pointer 
-                ${isRecentlyPurchased ? 'animate-purchase-success' : isSelected 
-                  ? 'border-white/40 ring-2 ring-white/10 scale-[1.02] bg-zinc-900/50' 
-                  : 'border-zinc-900 hover:border-zinc-700 hover:translate-y-[-4px]'
+              className={`group relative bg-zinc-900/30 border-2 p-8 rounded-[3.5rem] flex flex-col justify-between transition-all shadow-xl cursor-pointer hover:translate-y-[-8px]
+                ${isRecentlyPurchased ? 'animate-purchase-success border-white' : isSelected 
+                  ? 'border-indigo-500/50 bg-indigo-500/5' 
+                  : 'border-zinc-800 hover:border-zinc-700'
                 } 
-                ${item.isAnimated && !isSelected && !isRecentlyPurchased ? 'border-amber-500/30' : ''}`}
+                ${rarity.bg}`}
             >
-              {item.isAnimated && !isRecentlyPurchased && (
-                <div className="absolute top-4 right-4 animate-ping w-2 h-2 bg-amber-500 rounded-full" />
-              )}
-              
-              {isSelected && !isRecentlyPurchased && (
-                <div className="absolute inset-0 bg-white/5 rounded-[2rem] md:rounded-[2.5rem] pointer-events-none animate-pulse" />
-              )}
-
               <div>
-                <div className="text-4xl md:text-5xl mb-4 md:mb-6 transition-transform group-hover:scale-110 duration-500 drop-shadow-xl">{item.icon}</div>
-                <h3 className="text-base md:text-xl font-black text-zinc-100 mb-1 md:mb-2 font-rpg truncate">{item.name}</h3>
-                <p className="text-[9px] md:text-[10px] text-zinc-500 leading-tight md:leading-relaxed font-medium min-h-[36px] mb-3 md:mb-4 line-clamp-2 md:line-clamp-none">
-                  {item.description}
-                </p>
-
-                {item.type === 'equipment' && (
-                  <div className={`p-2 md:p-3 rounded-xl md:rounded-2xl border transition-colors space-y-1 md:space-y-2 ${isSelected ? 'bg-zinc-800/80 border-white/10' : 'bg-zinc-900/50 border-zinc-800/50'}`}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[7px] md:text-[9px] font-black text-zinc-600 uppercase tracking-widest">Atributo</span>
-                      <span className="text-[7px] md:text-[9px] font-black text-indigo-400 uppercase">{item.statBoost}</span>
-                    </div>
-                    {comp && (
-                      <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-[10px] md:text-xs font-bold text-zinc-400">{comp.currentVal}%</span>
-                        <span className="text-zinc-600 text-[10px] md:text-xs">→</span>
-                        <span className={`text-[10px] md:text-xs font-black ${comp.diff > 0 ? 'text-emerald-400' : comp.diff < 0 ? 'text-red-400' : 'text-zinc-300'}`}>
-                          {comp.newVal}%
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="text-6xl mb-8 drop-shadow-2xl group-hover:scale-110 transition-transform duration-500">{item.icon}</div>
+                <div className="space-y-2">
+                   <div className="flex justify-between items-center">
+                      <span className={`text-[8px] font-black uppercase tracking-widest ${rarity.color.split(' ')[0]}`}>{item.rarity}</span>
+                      {userItem && item.type === 'buff' && <span className="text-[10px] font-black text-indigo-400">Possuído: x{userItem.quantity}</span>}
+                   </div>
+                   <h3 className="text-2xl font-black text-white font-rpg">{item.name}</h3>
+                   <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">{item.description}</p>
+                </div>
               </div>
               
-              <div className="mt-4 md:mt-8 flex items-center justify-between border-t border-zinc-900 pt-4 md:pt-6">
-                <div className="flex items-center gap-1 text-amber-400 font-black text-base md:text-lg">
-                  <span className="text-xs">💰</span> {item.price}
+              <div className="mt-10 flex items-center justify-between border-t border-zinc-800/50 pt-8">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-zinc-600 uppercase mb-1">Custo</span>
+                  <span className="text-amber-400 font-black text-2xl tracking-tighter">💰 {item.price}</span>
                 </div>
                 <button
-                  disabled={!canAfford || (alreadyHas && item.type !== 'buff')}
+                  disabled={!canAfford || alreadyHasNonStackable}
                   onClick={(e) => { e.stopPropagation(); handleLocalPurchase(item); }}
-                  className={`px-3 md:px-6 py-2 md:py-3 rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all ${
-                    isRecentlyPurchased ? 'animate-purchase-success' : ''
-                  } ${
-                    alreadyHas && item.type !== 'buff'
-                      ? "bg-zinc-900 text-zinc-700 border border-zinc-800"
+                  className={`px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                    alreadyHasNonStackable
+                      ? "bg-zinc-800 text-zinc-600 border border-zinc-700"
                       : canAfford 
-                        ? "bg-white text-black hover:bg-zinc-200 shadow-xl" 
-                        : "bg-zinc-900 text-zinc-600 cursor-not-allowed"
-                  } ${isSelected ? 'ring-2 ring-white/20' : ''}`}
+                        ? "bg-white text-black hover:bg-zinc-200 shadow-2xl" 
+                        : "bg-zinc-950 text-zinc-700 cursor-not-allowed border border-zinc-900"
+                  }`}
                 >
-                  {isRecentlyPurchased ? "✨" : alreadyHas && item.type !== 'buff' ? "✓" : "Comprar"}
+                  {isRecentlyPurchased ? "✨" : alreadyHasNonStackable ? "✓ ÚNICO" : "ADQUIRIR"}
                 </button>
               </div>
             </div>
@@ -147,11 +104,9 @@ const Shop: React.FC<ShopProps> = ({ user, onPurchase }) => {
 
       {selectedItem && (
         <ItemDetailsModal 
-          item={selectedItem} 
-          user={user} 
-          onClose={() => setSelectedItem(null)} 
+          item={selectedItem} user={user} onClose={() => setSelectedItem(null)} 
           onAction={handleLocalPurchase}
-          actionLabel={user.gold >= selectedItem.price ? "Comprar" : "Ouro Insuficiente"}
+          actionLabel={user.gold >= selectedItem.price ? "Comprar Agora" : "Ouro Insuficiente"}
         />
       )}
     </div>

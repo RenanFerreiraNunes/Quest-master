@@ -21,11 +21,9 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'quests' | 'campaign' | 'shop' | 'inventory' | 'profile' | 'skills'>('quests');
   const [showQuestCreator, setShowQuestCreator] = useState(false);
   const [isCreatingCharacter, setIsCreatingCharacter] = useState(false);
-  const [isSuggesting, setIsSuggesting] = useState(false);
   const [damageEffect, setDamageEffect] = useState(false);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
 
-  // States para busca e filtro de inventário
   const [inventorySearch, setInventorySearch] = useState('');
   const [inventoryCategory, setInventoryCategory] = useState<'all' | 'equipment' | 'buff' | 'cosmetic'>('all');
   
@@ -68,7 +66,7 @@ const App: React.FC = () => {
   const updateAndSave = useCallback((updated: User) => {
     if (updated.isBroken && updated.hp >= updated.maxHp) {
       updated.isBroken = false;
-      alert("✨ Sua alma foi restaurada! Você pode aceitar novos contratos novamente.");
+      alert("✨ Sua alma foi restaurada!");
     }
 
     if (updated.hp <= 0 && !updated.isBroken) {
@@ -76,7 +74,7 @@ const App: React.FC = () => {
       updated.hp = Math.floor(updated.maxHp * 0.2); 
       updated.gold = Math.max(0, updated.gold - penalty);
       updated.tasks = updated.tasks.map(t => ({ ...t, startTime: null, isPaused: false, accumulatedTimeMs: 0 })); 
-      alert(`☠️ Você sucumbiu à exaustão! A guilda cobrou ${penalty}G pelo resgate.`);
+      alert(`☠️ Você sucumbiu! Perdeu ${penalty}G.`);
     }
     setUser(updated);
     db.saveUser(updated);
@@ -87,11 +85,71 @@ const App: React.FC = () => {
     setTimeout(() => setDamageEffect(false), 500);
   };
 
+  // Lógica de Compra com Stacking
+  const handlePurchase = (item: InventoryItem) => {
+    if (!user) return;
+    const isStackable = item.type === 'buff';
+    let newInventory = [...user.inventory];
+    
+    if (isStackable) {
+      const existingIdx = newInventory.findIndex(i => i.id === item.id);
+      if (existingIdx > -1) {
+        newInventory[existingIdx] = { 
+          ...newInventory[existingIdx], 
+          quantity: (newInventory[existingIdx].quantity || 1) + 1 
+        };
+      } else {
+        newInventory.push({ ...item, quantity: 1 });
+      }
+    } else {
+      newInventory.push({ ...item, quantity: 1 });
+    }
+
+    updateAndSave({
+      ...user,
+      gold: user.gold - item.price,
+      inventory: newInventory
+    });
+  };
+
+  const handleUseItem = (item: InventoryItem) => {
+    if (!user) return;
+    if (item.type === 'buff') {
+      const heal = item.id === 'potion-0' ? 5 : 20;
+      let newInventory = [...user.inventory];
+      const idx = newInventory.findIndex(i => i.id === item.id);
+      
+      if (idx > -1) {
+        const currentQty = newInventory[idx].quantity || 1;
+        if (currentQty > 1) {
+          newInventory[idx] = { ...newInventory[idx], quantity: currentQty - 1 };
+        } else {
+          newInventory.splice(idx, 1);
+        }
+      }
+
+      updateAndSave({
+        ...user,
+        hp: Math.min(user.maxHp, user.hp + heal),
+        inventory: newInventory
+      });
+      setSelectedInventoryItem(null);
+    }
+  };
+
+  const handleEquipItem = (item: InventoryItem) => {
+    if (!user || !item.slot) return;
+    const currentEquipped = user.equipment[item.slot];
+    const newEquipment = { ...user.equipment, [item.slot]: currentEquipped === item.id ? null : item.id };
+    updateAndSave({ ...user, equipment: newEquipment });
+  };
+
+  // Funções de Task
   const handleStartTask = (taskId: string) => {
     if (!user || user.isBroken) return;
     updateAndSave({
       ...user,
-      hp: user.hp - 5, 
+      hp: Math.max(1, user.hp - 5), 
       tasks: user.tasks.map(t => t.id === taskId ? { ...t, startTime: Date.now(), isPaused: false } : t)
     });
   };
@@ -100,52 +158,13 @@ const App: React.FC = () => {
     if (!user) return;
     const task = user.tasks.find(t => t.id === taskId);
     if (!task || !task.startTime || task.isPaused) return;
-
     const elapsed = Date.now() - task.startTime;
     updateAndSave({
       ...user,
-      hp: Math.max(1, user.hp - 2),
       tasks: user.tasks.map(t => t.id === taskId ? { 
-        ...t, 
-        startTime: null, 
-        accumulatedTimeMs: t.accumulatedTimeMs + elapsed,
-        isPaused: true 
+        ...t, startTime: null, accumulatedTimeMs: t.accumulatedTimeMs + elapsed, isPaused: true 
       } : t)
     });
-  };
-
-  const handleResumeTask = (taskId: string) => {
-    if (!user) return;
-    updateAndSave({
-      ...user,
-      tasks: user.tasks.map(t => t.id === taskId ? { 
-        ...t, 
-        startTime: Date.now(), 
-        isPaused: false 
-      } : t)
-    });
-  };
-
-  const handleCancelTask = (task: Task) => {
-    if (!user) return;
-    const config = RARITIES[task.rarity] || RARITIES.comum;
-    const diff = DIFFICULTIES[task.difficulty] || DIFFICULTIES.facil;
-    const hpLoss = Math.max(5, Math.floor((config.xp * diff.multiplier) * 0.2));
-    const willBreak = user.hp - hpLoss <= 0;
-
-    const msg = willBreak 
-      ? `⚠️ EXAUSTÃO CRÍTICA: Desistir custará ${hpLoss} HP. Isso deixará você em estado espectral (HP 1) e bloqueado até se curar 100%! Continuar?`
-      : `🛡️ PENALIDADE: Perderá ${hpLoss} HP. Confirmar desistência?`;
-
-    if (window.confirm(msg)) {
-      triggerDamage();
-      updateAndSave({
-        ...user,
-        hp: willBreak ? 1 : user.hp - hpLoss,
-        isBroken: willBreak ? true : user.isBroken,
-        tasks: user.tasks.filter(t => t.id !== task.id)
-      });
-    }
   };
 
   const completeTask = (task: Task) => {
@@ -153,23 +172,20 @@ const App: React.FC = () => {
     let totalElapsedMs = task.accumulatedTimeMs + (task.startTime ? (Date.now() - task.startTime) : 0);
     
     if (totalElapsedMs < task.minDurationSeconds * 1000) {
-       const damage = { comum: 10, raro: 25, epico: 50, lendario: 100 }[task.rarity] || 10;
        triggerDamage();
        updateAndSave({
          ...user,
-         hp: Math.max(1, user.hp - damage),
-         isBroken: (user.hp - damage <= 0) ? true : user.isBroken,
+         hp: Math.max(1, user.hp - 10),
          tasks: user.tasks.map(t => t.id === task.id ? { ...t, startTime: null, isPaused: false, accumulatedTimeMs: 0 } : t)
        });
-       alert(`💥 BACKLASH! Dano recebido: ${damage}.`);
+       alert("💥 BACKLASH! Você falhou prematuramente.");
        return;
     }
 
     const rConfig = RARITIES[task.rarity] || RARITIES.comum;
     const dConfig = DIFFICULTIES[task.difficulty] || DIFFICULTIES.facil;
-    const classBase = CLASS_STATS[user.charClass];
-    const earnedXp = Math.floor(rConfig.xp * dConfig.multiplier * classBase.xpMod);
-    const earnedGold = Math.floor(rConfig.gold * dConfig.multiplier * classBase.goldMod);
+    const earnedXp = Math.floor(rConfig.xp * dConfig.multiplier);
+    const earnedGold = Math.floor(rConfig.gold * dConfig.multiplier);
     
     let newXp = user.xp + earnedXp;
     let newLevel = user.level;
@@ -183,56 +199,8 @@ const App: React.FC = () => {
     });
   };
 
-  const handleEquipItem = (item: InventoryItem) => {
-    if (!user || !item.slot) return;
-    const currentEquipped = user.equipment[item.slot];
-    const newEquipment = { ...user.equipment, [item.slot]: currentEquipped === item.id ? null : item.id };
-    updateAndSave({ ...user, equipment: newEquipment });
-  };
-
-  const handleUseItem = (item: InventoryItem) => {
-    if (!user) return;
-    if (item.type === 'buff') {
-      const heal = item.id === 'potion-0' ? 5 : 20;
-      updateAndSave({
-        ...user,
-        hp: Math.min(user.maxHp, user.hp + heal),
-        inventory: user.inventory.filter((it, i) => it.id !== item.id || user.inventory.indexOf(it) !== user.inventory.indexOf(item))
-      });
-      setSelectedInventoryItem(null);
-    }
-  };
-
-  const handleLogin = () => {
-    if (!email) return;
-    let existing = db.getUser(email);
-    if (!existing) setIsCreatingCharacter(true);
-    else {
-      db.setSession(email);
-      setUser(existing);
-      fetchAiGreeting(existing);
-    }
-  };
-
-  const handleCharacterCreation = (data: { nickname: string, charClass: CharacterClass, appearance: Appearance }) => {
-    const stats = CLASS_STATS[data.charClass];
-    const newUser: User = {
-      email, nickname: data.nickname, charClass: data.charClass, avatar: '🛡️', appearance: data.appearance,
-      xp: 0, level: 1, gold: 100, hp: stats.hp, maxHp: stats.hp, isBroken: false,
-      inventoryCapacity: BASE_INVENTORY_CAPACITY, activeTheme: 'theme-default', tasks: [], inventory: [],
-      skills: INITIAL_SKILLS, equippedSkills: [], equipment: { head: null, body: null, acc1: null, acc2: null, special: null },
-      campaignProgress: 0
-    };
-    db.saveUser(newUser);
-    db.setSession(email);
-    setUser(newUser);
-    setIsCreatingCharacter(false);
-  };
-
-  // Filtro de inventário com segurança para raridade
   const filteredInventory = user?.inventory?.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || 
-                          item.description.toLowerCase().includes(inventorySearch.toLowerCase());
+    const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase());
     const matchesCategory = inventoryCategory === 'all' || 
                             (inventoryCategory === 'equipment' && item.type === 'equipment') ||
                             (inventoryCategory === 'buff' && item.type === 'buff') ||
@@ -240,7 +208,15 @@ const App: React.FC = () => {
     return matchesSearch && matchesCategory;
   }) || [];
 
-  if (isCreatingCharacter) return <CharacterCreator onComplete={handleCharacterCreation} />;
+  if (isCreatingCharacter) return <CharacterCreator onComplete={(data) => {
+    const newUser: User = {
+      ...data, email, xp: 0, level: 1, gold: 100, hp: 100, maxHp: 100, isBroken: false, avatar: '🛡️',
+      inventoryCapacity: BASE_INVENTORY_CAPACITY, activeTheme: 'theme-default', tasks: [], inventory: [],
+      skills: INITIAL_SKILLS, equippedSkills: [], equipment: { head: null, body: null, acc1: null, acc2: null, special: null },
+      campaignProgress: 0
+    };
+    db.saveUser(newUser); db.setSession(email); setUser(newUser); setIsCreatingCharacter(false);
+  }} />;
   
   if (!user) return (
     <div className="min-h-screen relative flex items-center justify-center p-4 bg-zinc-950">
@@ -248,173 +224,151 @@ const App: React.FC = () => {
       <div className="w-full max-w-md bg-zinc-900/40 backdrop-blur-2xl border border-zinc-800 p-10 rounded-[3rem] shadow-3xl text-center relative z-10">
         <h1 className="text-5xl font-rpg mb-10 text-white font-black uppercase tracking-tighter">QUEST<span className="text-red-600">MASTER</span></h1>
         <input type="email" placeholder="Email do Herói" className="w-full bg-zinc-800/50 border border-zinc-700 rounded-2xl p-4 text-white mb-4 text-center" value={email} onChange={e => setEmail(e.target.value)} />
-        <button onClick={handleLogin} className="w-full bg-red-600 py-5 rounded-2xl font-black text-white uppercase tracking-[0.3em] text-xs">Entrar no Reino</button>
+        <button onClick={() => {
+           if (!email) return;
+           let existing = db.getUser(email);
+           if (!existing) setIsCreatingCharacter(true);
+           else { db.setSession(email); setUser(existing); fetchAiGreeting(existing); }
+        }} className="w-full bg-red-600 py-5 rounded-2xl font-black text-white uppercase tracking-[0.3em] text-xs">Entrar no Reino</button>
       </div>
     </div>
   );
 
   return (
     <ClickSpark>
-      <div className={`h-screen flex flex-col md:flex-row text-zinc-100 ${currentTheme.bg} transition-all duration-500 overflow-hidden ${damageEffect || user.isBroken ? 'ring-inset ring-8 ring-red-900/40' : ''}`}>
-        <aside className="w-full md:w-80 bg-zinc-900/40 border-r border-zinc-800/50 p-6 flex flex-col h-full overflow-y-auto scrollbar-hide">
-          <div className="flex flex-col items-center mb-10 gap-6">
+      <div className={`h-screen flex flex-col md:flex-row text-zinc-100 ${currentTheme.bg} transition-all duration-500 overflow-hidden`}>
+        {/* Sidebar */}
+        <aside className="w-full md:w-80 bg-zinc-900/40 border-r border-zinc-800/50 p-8 flex flex-col h-full overflow-y-auto scrollbar-hide">
+          <div className="flex flex-col items-center mb-12 gap-8">
             <div className="relative group">
-              <div className={`w-36 h-36 rounded-[3.5rem] bg-zinc-950 border-2 border-zinc-800 flex items-center justify-center shadow-3xl overflow-hidden ${damageEffect ? 'animate-shake' : ''}`}>
-                <HeroAvatar appearance={{...user.appearance, expression: user.isBroken ? 'tired' : user.appearance.expression}} user={user} size={110} />
+              <div className={`w-40 h-40 rounded-[4rem] bg-zinc-950 border-2 border-zinc-800 flex items-center justify-center shadow-3xl overflow-hidden ${damageEffect ? 'animate-shake' : ''}`}>
+                <HeroAvatar appearance={user.appearance} user={user} size={130} />
               </div>
-              <div className={`absolute -top-3 -right-3 w-12 h-12 bg-${currentTheme.primary} rounded-2xl border-4 border-zinc-900 flex items-center justify-center text-xl shadow-2xl transition-all ${user.isBroken ? 'scale-110 animate-pulse' : ''}`}>
+              <div className={`absolute -top-3 -right-3 w-12 h-12 bg-${currentTheme.primary} rounded-2xl border-4 border-zinc-900 flex items-center justify-center text-xl shadow-2xl`}>
                 {user.isBroken ? '💀' : user.avatar}
               </div>
             </div>
-            <div className="text-center">
-              <h1 className="font-rpg text-3xl font-black">{user.nickname}</h1>
-              <p className={`text-[9px] uppercase font-black tracking-[0.4em] mt-2 ${currentTheme.text}`}>NÍVEL {user.level}</p>
+            <div className="text-center space-y-2">
+              <h1 className="font-rpg text-3xl font-black tracking-tight">{user.nickname}</h1>
+              <div className={`px-4 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] uppercase font-black tracking-widest ${currentTheme.text}`}>
+                {user.charClass} • Lvl {user.level}
+              </div>
             </div>
           </div>
-          <div className="space-y-6 flex-1">
-            <StatsBar label="Vitalidade" current={user.hp} max={user.maxHp} color={user.isBroken ? "bg-zinc-700 animate-pulse" : (user.hp < 20 ? "bg-red-800 animate-pulse" : "bg-red-600")} icon="❤️" />
-            <StatsBar label="Alma (XP)" current={user.xp} max={user.level * 200} color={`bg-${currentTheme.primary}`} icon="✨" />
-            <div className="bg-zinc-800/40 p-5 rounded-[2rem] border border-zinc-700/30 flex justify-between items-center shadow-inner">
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Tesouro</span>
-              <span className="text-amber-400 font-black text-2xl">💰 {user.gold}</span>
+          
+          <div className="space-y-8 flex-1">
+            <StatsBar label="Vida" current={user.hp} max={user.maxHp} color={user.isBroken ? "bg-zinc-700" : (user.hp < 30 ? "bg-red-800" : "bg-red-600")} icon="❤️" />
+            <StatsBar label="Experiência" current={user.xp} max={user.level * 200} color={`bg-${currentTheme.primary}`} icon="✨" />
+            <div className="bg-zinc-800/30 p-6 rounded-[2.5rem] border border-zinc-700/30 flex justify-between items-center shadow-inner">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Tesouro</span>
+                <span className="text-amber-400 font-black text-2xl">💰 {user.gold}</span>
+              </div>
+              <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-xl">🏦</div>
             </div>
           </div>
-          <p className="text-[10px] italic text-zinc-600 text-center mb-4 px-2">"{aiMessage}"</p>
-          <button onClick={() => { db.logout(); window.location.reload(); }} className="py-4 rounded-2xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-600 hover:text-red-500 tracking-[0.3em] transition-all">Retirar-se</button>
+          
+          <div className="mt-8 space-y-4">
+            <p className="text-[10px] italic text-zinc-600 text-center px-4 leading-relaxed">"{aiMessage}"</p>
+            <button onClick={() => { db.logout(); window.location.reload(); }} className="w-full py-4 rounded-2xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-600 hover:text-red-500 tracking-[0.3em] transition-all">Sair</button>
+          </div>
         </aside>
 
-        <main 
-          ref={mainRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto relative p-4 md:p-10 z-10 scrollbar-hide"
-        >
-          <ChromaGrid 
-            scrollOffset={scrollPos}
-            color={currentTheme.primary === 'red-600' ? 'rgba(220, 38, 38, 0.05)' : 'rgba(255,255,255,0.03)'} 
-          />
+        {/* Main Area */}
+        <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto relative p-8 md:p-14 z-10 scrollbar-hide">
+          <ChromaGrid scrollOffset={scrollPos} color={currentTheme.primary === 'red-600' ? 'rgba(220, 38, 38, 0.05)' : 'rgba(255,255,255,0.03)'} />
           
-          <nav className="flex items-center gap-4 mb-12 overflow-x-auto pb-6 sticky top-0 z-40 bg-zinc-950/20 backdrop-blur-md">
+          <nav className="flex items-center gap-6 mb-16 overflow-x-auto pb-6 sticky top-0 z-40 bg-transparent backdrop-blur-md">
             {[
-              {id:'quests',l:'Quests',i:'⚔️'},
-              {id:'campaign',l:'Mapa',i:'🗺️'},
-              {id:'skills',l:'Poderes',i:'🔥'},
+              {id:'quests',l:'Missões',i:'⚔️'},
+              {id:'campaign',l:'História',i:'🗺️'},
+              {id:'skills',l:'Talentos',i:'🔥'},
               {id:'shop',l:'Bazar',i:'💎'},
               {id:'inventory',l:'Mochila',i:'🎒'},
-              {id:'profile',l:'Perfil',i:'🎭'}
+              {id:'profile',l:'Herói',i:'🎭'}
             ].map(tab=>(
-              <button key={tab.id} onClick={()=>setActiveTab(tab.id as any)} className={`px-8 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all flex items-center gap-4 shrink-0 ${activeTab===tab.id?'bg-white text-black shadow-3xl scale-105 border-transparent':'bg-zinc-900/40 text-zinc-500 hover:bg-zinc-800 border border-zinc-800'}`}>
+              <button key={tab.id} onClick={()=>setActiveTab(tab.id as any)} className={`px-10 py-5 rounded-[2.5rem] text-[10px] font-black uppercase tracking-[0.4em] transition-all flex items-center gap-4 shrink-0 ${activeTab===tab.id?'bg-white text-black shadow-3xl scale-105':'bg-zinc-900/50 text-zinc-500 border border-zinc-800 hover:bg-zinc-800'}`}>
                 <span>{tab.i}</span> {tab.l}
               </button>
             ))}
           </nav>
 
           {activeTab === 'inventory' && (
-            <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-6">
-              <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="max-w-6xl mx-auto space-y-12 animate-in slide-in-from-bottom-8 duration-700">
+              <header className="flex justify-between items-end">
                 <div className="space-y-4">
-                  <h2 className="text-5xl font-rpg uppercase">Sua <span className="text-indigo-500">Mochila</span></h2>
-                  <div className="flex gap-4 items-center">
-                     <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 px-3 py-1 rounded-lg">Carga: {user.inventory.length}/{user.inventoryCapacity}</span>
+                  <h2 className="text-6xl font-rpg uppercase">Seu <span className="text-indigo-500">Espólio</span></h2>
+                  <div className="flex gap-4">
+                    <span className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-black text-zinc-500 uppercase">Espaços: {user.inventory.length}/{user.inventoryCapacity}</span>
                   </div>
                 </div>
-
-                <div className="flex flex-col md:flex-row gap-4 flex-1 max-w-2xl">
-                  <div className="relative flex-1 group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-500 transition-colors">🔍</span>
-                    <input 
-                      type="text" 
-                      placeholder="Procurar item..." 
-                      value={inventorySearch}
-                      onChange={e => setInventorySearch(e.target.value)}
-                      className="w-full bg-zinc-900/40 border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-xs font-bold outline-none focus:border-indigo-500/50 transition-all shadow-inner"
-                    />
-                  </div>
-                  <div className="flex gap-2 bg-zinc-900/20 p-1.5 rounded-2xl border border-zinc-800">
-                    {[
-                      {id: 'all', l: 'Tudo'}, 
-                      {id: 'equipment', l: '⚔️'}, 
-                      {id: 'buff', l: '🧪'}, 
-                      {id: 'cosmetic', l: '🎭'}
-                    ].map(cat => (
-                      <button 
-                        key={cat.id} 
-                        onClick={() => setInventoryCategory(cat.id as any)}
-                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${inventoryCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-                      >
-                        {cat.l}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex gap-4">
+                   <input type="text" placeholder="Filtrar itens..." value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl px-6 py-4 text-xs font-bold w-64 focus:border-indigo-500 outline-none" />
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <div className="lg:col-span-5 flex flex-col items-center">
-                  <div className="relative w-full aspect-[4/5] bg-zinc-900/30 border border-zinc-800 rounded-[4rem] flex items-center justify-center p-12 overflow-hidden shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+                {/* Character Profile Card */}
+                <div className="lg:col-span-5 flex flex-col gap-8">
+                  <div className="relative aspect-[3/4] bg-zinc-900/40 rounded-[5rem] border-2 border-zinc-800 flex flex-col items-center p-12 overflow-hidden shadow-2xl">
+                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-50" />
                     
-                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-8">
-                      <div className="col-start-2 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="head" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                      <div className="row-start-2 col-start-1 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                      <div className="row-start-2 col-start-3 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="acc2" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                      <div className="row-start-3 col-start-2 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="body" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                      <div className="row-start-3 col-start-3 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="special" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
+                    {/* Equipment Slots Socketed */}
+                    <div className="absolute inset-0 p-10 grid grid-cols-3 grid-rows-3 pointer-events-none">
+                      <div className="col-start-2 flex justify-center"><EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} /></div>
+                      <div className="row-start-2 col-start-1 flex items-center"><EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} /></div>
+                      <div className="row-start-2 col-start-3 flex items-center justify-end"><EquipSlot slot="acc2" user={user} onSelect={setSelectedInventoryItem} /></div>
+                      <div className="row-start-3 col-start-2 flex justify-center items-end"><EquipSlot slot="body" user={user} onSelect={setSelectedInventoryItem} /></div>
+                      <div className="row-start-3 col-start-3 flex justify-end items-end"><EquipSlot slot="special" user={user} onSelect={setSelectedInventoryItem} /></div>
                     </div>
 
-                    <div className="z-10 bg-zinc-950/40 p-10 rounded-full border border-zinc-800/50 shadow-inner">
-                      <HeroAvatar appearance={user.appearance} user={user} size={220} className="drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]" />
+                    <div className="mt-12 mb-auto z-10 flex flex-col items-center">
+                       <div className="w-56 h-56 bg-zinc-950/60 rounded-full border border-zinc-800 flex items-center justify-center shadow-inner relative">
+                          <HeroAvatar appearance={user.appearance} user={user} size={180} />
+                          <div className="absolute -bottom-4 bg-zinc-900 border border-zinc-700 px-6 py-2 rounded-full text-xs font-black font-rpg">LEVEL {user.level}</div>
+                       </div>
+                    </div>
+
+                    <div className="w-full space-y-4 z-10">
+                       <div className="grid grid-cols-3 gap-2">
+                          {[
+                            {l: 'Poder', v: '+12%', i: '⚔️'},
+                            {l: 'Defesa', v: '+8%', i: '🛡️'},
+                            {l: 'Sorte', v: '+5%', i: '🍀'}
+                          ].map(s => (
+                            <div key={s.l} className="bg-black/40 border border-zinc-800/50 p-4 rounded-3xl text-center">
+                               <p className="text-[7px] text-zinc-600 uppercase font-black">{s.l}</p>
+                               <p className="text-sm font-black text-zinc-200">{s.v}</p>
+                            </div>
+                          ))}
+                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="lg:col-span-7 space-y-6">
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto pr-4 scrollbar-hide">
+                {/* Inventory Grid */}
+                <div className="lg:col-span-7">
+                  <div className="grid grid-cols-4 md:grid-cols-5 gap-4 overflow-y-auto pr-2 max-h-[700px] scrollbar-hide">
                     {filteredInventory.map((item, idx) => {
                       const isEquipped = Object.values(user.equipment).includes(item.id);
-                      // Fallback fix: Assume "comum" if rarity is missing or undefined
-                      const rarityConfig = RARITIES[item.rarity] || RARITIES.comum;
-                      const colorClass = rarityConfig.color?.split(' ')[1] || 'border-zinc-700';
-                      
+                      const rarity = RARITIES[item.rarity] || RARITIES.comum;
                       return (
                         <div 
-                          key={`${item.id}-${idx}`} 
+                          key={`${item.id}-${idx}`}
                           onClick={() => setSelectedInventoryItem(item)}
-                          className={`group aspect-square relative p-4 rounded-3xl border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 
-                            ${colorClass} 
-                            ${rarityConfig.bg || 'bg-zinc-900/50'}
-                            ${isEquipped ? 'ring-2 ring-white/20' : ''}
-                            ${item.rarity === 'lendario' ? 'animate-pulse' : ''}`}
+                          className={`group aspect-square relative rounded-3xl border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-1 ${rarity.color.split(' ')[1]} ${rarity.bg} ${isEquipped ? 'ring-2 ring-white/30' : ''}`}
                         >
-                          <div className={`absolute inset-0 rounded-3xl opacity-10 pointer-events-none transition-opacity group-hover:opacity-20 ${rarityConfig.bg || 'bg-zinc-900/50'}`} />
-                          
-                          <span className="text-4xl block group-hover:scale-110 transition-transform relative z-10">{item.icon}</span>
-                          <h4 className="text-[8px] font-black uppercase text-center truncate w-full text-zinc-400 relative z-10">{item.name}</h4>
-                          
-                          {isEquipped && (
-                            <span className="absolute top-2 right-2 text-[6px] bg-white text-black px-2 py-0.5 rounded-full font-black z-20">EQUIP</span>
+                          <span className="text-4xl group-hover:scale-110 transition-all">{item.icon}</span>
+                          <span className={`text-[7px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors`}>{item.name.split(' ')[0]}</span>
+                          {item.quantity && item.quantity > 1 && (
+                            <div className="absolute top-2 right-2 bg-black/80 border border-zinc-700 px-2 py-0.5 rounded-lg text-[8px] font-black text-white">x{item.quantity}</div>
                           )}
-                          
-                          <span className={`absolute bottom-2 text-[6px] font-black uppercase tracking-tighter ${rarityConfig.color?.split(' ')[0] || 'text-zinc-400'}`}>
-                            {item.rarity || 'comum'}
-                          </span>
+                          {isEquipped && <div className="absolute -bottom-2 bg-white text-black px-2 py-0.5 rounded-full text-[6px] font-black">EQUIP</div>}
                         </div>
                       );
                     })}
                     {filteredInventory.length === 0 && (
-                      <div className="col-span-full py-20 text-center space-y-4 bg-zinc-900/10 rounded-[3rem] border border-dashed border-zinc-800">
-                         <span className="text-4xl opacity-20">🕳️</span>
-                         <p className="text-[10px] font-black uppercase text-zinc-700 tracking-[0.3em]">Nenhum item encontrado nesta busca</p>
-                      </div>
+                      <div className="col-span-full py-20 border-2 border-dashed border-zinc-800 rounded-[3rem] text-center opacity-30">Vazio</div>
                     )}
                   </div>
                 </div>
@@ -422,137 +376,80 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'shop' && <Shop user={user} onPurchase={handlePurchase} />}
           {activeTab === 'quests' && (
-            <div className="max-w-5xl mx-auto space-y-16">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="max-w-4xl mx-auto space-y-16">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {!user.isBroken && (
-                  <button onClick={()=>setShowQuestCreator(true)} className="bg-zinc-900/20 border-4 border-dashed border-zinc-800 p-8 rounded-[3rem] flex items-center gap-6 hover:border-red-600/30 transition-all">
-                    <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center text-xl">＋</div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Nova Quest</span>
+                  <button onClick={()=>setShowQuestCreator(true)} className="bg-zinc-900/30 border-4 border-dashed border-zinc-800 p-10 rounded-[3.5rem] flex items-center gap-6 hover:border-red-600/40 transition-all group">
+                    <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-2xl group-hover:scale-110 transition-all">＋</div>
+                    <span className="text-xs font-black uppercase tracking-[0.4em] text-zinc-500 group-hover:text-zinc-200">Nova Missão</span>
                   </button>
-                )}
-                {user.isBroken && (
-                  <div className="col-span-full p-10 bg-zinc-900/40 border-4 border-dashed border-red-900/20 rounded-[3rem] text-center space-y-4">
-                    <p className="text-4xl">💀</p>
-                    <p className="text-[10px] font-black uppercase text-red-500 tracking-[0.3em]">Exaustão Crítica: Cure-se 100% para novas quests</p>
-                  </div>
                 )}
               </div>
               {showQuestCreator && <QuestStepper onCancel={()=>setShowQuestCreator(false)} onComplete={data => {
-                const task: Task = {
-                  id: Math.random().toString(36).substr(2,9), title: data.title, rarity: data.rarity, difficulty: data.difficulty,
-                  durationMinutes: data.duration, minDurationSeconds: data.minDurationSeconds,
-                  startTime: null, accumulatedTimeMs: 0, isPaused: false, done: false, createdAt: Date.now()
-                };
+                const task: Task = { ...data, id: Math.random().toString(36).substr(2,9), startTime: null, accumulatedTimeMs: 0, isPaused: false, done: false, createdAt: Date.now() };
                 updateAndSave({...user, tasks: [task, ...user.tasks]});
                 setShowQuestCreator(false);
               }} />}
-              <section className="space-y-6">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-500">Mural de Contratos</h3>
-                {user.tasks.filter(t => !t.done).map(task => {
-                  const config = RARITIES[task.rarity] || RARITIES.comum;
-                  const diff = DIFFICULTIES[task.difficulty] || DIFFICULTIES.facil;
-                  let totalElapsedMs = task.accumulatedTimeMs + (task.startTime ? (currentTime - task.startTime) : 0);
-                  const progress = Math.min(100, (totalElapsedMs / (task.minDurationSeconds * 1000)) * 100);
-                  const timeLeft = Math.max(0, Math.floor(task.minDurationSeconds - (totalElapsedMs / 1000)));
-                  return (
-                    <div key={task.id} className={`p-8 border-2 ${config.color} ${config.bg} rounded-[3.5rem] relative overflow-hidden shadow-xl transition-all`}>
-                      <div className="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+              <div className="space-y-8">
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700">Contratos Pendentes</h3>
+                 {user.tasks.filter(t => !t.done).map(task => {
+                   const config = RARITIES[task.rarity] || RARITIES.comum;
+                   return (
+                     <div key={task.id} className={`p-10 rounded-[4rem] border-2 ${config.color} ${config.bg} shadow-2xl flex flex-col md:flex-row items-center gap-8`}>
                         <div className="flex-1 space-y-4">
-                           <h3 className="text-3xl font-rpg font-black">{task.title}</h3>
-                           <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest">
-                             <span className="text-amber-500">💰 {Math.floor(config.gold * diff.multiplier)}G</span>
-                             <span className="text-indigo-400">✨ {Math.floor(config.xp * diff.multiplier)}XP</span>
+                           <h3 className="text-4xl font-rpg font-black">{task.title}</h3>
+                           <div className="flex gap-4">
+                              <span className="text-amber-500 font-bold text-sm">💰 {config.gold}G</span>
+                              <span className="text-indigo-400 font-bold text-sm">✨ {config.xp}XP</span>
                            </div>
-                           {(task.startTime || task.isPaused) && (
-                             <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-zinc-800">
-                               <div className={`h-full ${task.isPaused ? 'bg-zinc-600' : 'bg-red-600'} transition-all duration-1000`} style={{width: `${progress}%`}} />
-                             </div>
-                           )}
                         </div>
-                        <div className="flex items-center gap-4">
-                          {!task.startTime && !task.isPaused ? (
-                            <button onClick={()=>handleStartTask(task.id)} className="px-10 py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all">Iniciar</button>
-                          ) : (
-                            <div className="flex items-center gap-4">
-                              <span className={`font-mono text-2xl font-black ${task.isPaused ? 'text-zinc-600' : 'text-white'}`}>{Math.floor(timeLeft/60)}:{(timeLeft%60).toString().padStart(2,'0')}</span>
-                              <button onClick={task.startTime ? ()=>handlePauseTask(task.id) : ()=>handleResumeTask(task.id)} className="p-5 bg-zinc-800 rounded-2xl hover:bg-zinc-700 transition-all">{task.startTime ? '⏸' : '▶️'}</button>
-                              <button disabled={progress<100} onClick={()=>completeTask(task)} className={`px-10 py-5 rounded-2xl font-black uppercase tracking-widest transition-all ${progress>=100?'bg-white text-black hover:scale-105':'bg-zinc-800 text-zinc-600'}`}>Concluir</button>
-                            </div>
-                          )}
-                          <button onClick={()=>handleCancelTask(task)} className="p-4 hover:bg-red-600/20 text-zinc-600 hover:text-red-500 rounded-2xl transition-all">✕</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </section>
+                        <button onClick={()=>handleStartTask(task.id)} className="px-12 py-5 bg-white text-black rounded-3xl font-black uppercase tracking-widest hover:scale-105 transition-all">Iniciar</button>
+                     </div>
+                   );
+                 })}
+              </div>
             </div>
           )}
 
           {activeTab === 'profile' && (
-            <div className="max-w-4xl mx-auto space-y-12 pb-20 animate-in fade-in duration-500">
-               <header className="space-y-4 text-center md:text-left">
-                 <h2 className="text-5xl font-rpg uppercase tracking-tighter">Refúgio do <span className={currentTheme.text}>Herói</span></h2>
-                 <p className="text-zinc-500 font-black uppercase tracking-[0.4em] text-[10px]">Customize sua aparência e identidade</p>
-               </header>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-12 bg-zinc-900/20 p-10 rounded-[4rem] border border-zinc-800">
-                 <div className="space-y-8">
-                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Codinome</label>
-                     <input type="text" value={user.nickname} onChange={e => updateAndSave({...user, nickname: e.target.value})} className="w-full bg-zinc-900 p-5 rounded-2xl outline-none border border-zinc-800 focus:border-red-600 font-bold transition-all" />
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Expressão Facial</label>
-                     <div className="grid grid-cols-3 gap-2">
-                       {['neutral', 'happy', 'focused', 'grin', 'tired'].map(ex => (
-                         <button key={ex} onClick={() => updateAndSave({...user, appearance: {...user.appearance, expression: ex as any}})} className={`py-3 rounded-xl text-[9px] font-black uppercase transition-all ${user.appearance.expression === ex ? 'bg-white text-black shadow-xl scale-105' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}>{ex}</button>
-                       ))}
+            <div className="max-w-3xl mx-auto space-y-12">
+               <h2 className="text-5xl font-rpg text-center">Refúgio do <span className="text-red-500">Herói</span></h2>
+               <div className="bg-zinc-900/40 p-12 rounded-[4rem] border border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-12">
+                  <div className="space-y-8">
+                     <div className="space-y-4">
+                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Codinome</label>
+                        <input type="text" value={user.nickname} onChange={e => updateAndSave({...user, nickname: e.target.value})} className="w-full bg-zinc-950 p-6 rounded-3xl border border-zinc-800 font-bold text-white focus:border-red-600 outline-none" />
                      </div>
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                       <span className="text-[10px] text-zinc-600 uppercase font-black">Cor da Pele</span>
-                       <input type="color" value={user.appearance.skinColor} onChange={e => updateAndSave({...user, appearance: {...user.appearance, skinColor: e.target.value}})} className="w-full h-10 rounded-xl bg-zinc-800 p-1 cursor-pointer border-none" />
+                     <div className="space-y-4">
+                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Atributos Primários</label>
+                        <div className="space-y-4">
+                           <StatsBar label="Força" current={85} max={100} color="bg-orange-600" />
+                           <StatsBar label="Mente" current={40} max={100} color="bg-indigo-600" />
+                        </div>
                      </div>
-                     <div className="space-y-2">
-                       <span className="text-[10px] text-zinc-600 uppercase font-black">Cor do Cabelo</span>
-                       <input type="color" value={user.appearance.hairColor} onChange={e => updateAndSave({...user, appearance: {...user.appearance, hairColor: e.target.value}})} className="w-full h-10 rounded-xl bg-zinc-800 p-1 cursor-pointer border-none" />
+                  </div>
+                  <div className="flex items-center justify-center">
+                     <div className="w-64 h-64 bg-zinc-950 rounded-[4rem] border-2 border-zinc-800 flex items-center justify-center shadow-inner relative">
+                        <HeroAvatar appearance={user.appearance} user={user} size={200} />
                      </div>
-                   </div>
-                 </div>
-                 <div className="flex items-center justify-center">
-                   <div className="w-64 h-64 bg-zinc-950 rounded-[4rem] border-2 border-zinc-800 flex items-center justify-center shadow-2xl relative">
-                     <HeroAvatar appearance={user.appearance} user={user} size={200} />
-                   </div>
-                 </div>
+                  </div>
                </div>
             </div>
           )}
 
           {activeTab === 'campaign' && <CampaignTab user={user} onClaim={(id) => {
             const mission = CAMPAIGN_CHAPTERS.find(m => m.id === id);
-            if (mission) {
-              let newXp = user.xp + mission.xpReward;
-              let newLevel = user.level;
-              while (newXp >= newLevel * 200) { newXp -= (newLevel * 200); newLevel++; }
-              updateAndSave({ ...user, xp: newXp, level: newLevel, gold: user.gold + mission.goldReward, campaignProgress: user.campaignProgress + 1 });
-            }
-          }} />}
-          {activeTab === 'shop' && <Shop user={user} onPurchase={(item) => {
-            if (user.gold >= item.price) updateAndSave({...user, gold: user.gold - item.price, inventory: [...user.inventory, item]});
+            if (mission) updateAndSave({ ...user, gold: user.gold + mission.goldReward, campaignProgress: user.campaignProgress + 1 });
           }} />}
           {activeTab === 'skills' && <SkillsManager user={user} onUpgrade={(id) => {
             const skill = user.skills.find(s => s.id === id);
-            if (!skill) return;
-            const cost = Math.floor(skill.xpCostBase * Math.pow(1.5, skill.level));
-            if (user.xp >= cost) updateAndSave({ ...user, xp: user.xp - cost, skills: user.skills.map(s => s.id === id ? { ...s, level: s.level + 1 } : s) });
+            if (skill) updateAndSave({ ...user, xp: user.xp - 100, skills: user.skills.map(s => s.id === id ? { ...s, level: s.level + 1 } : s) });
           }} onEquip={(id) => {
-            const isEquipped = user.equippedSkills.includes(id);
-            if (isEquipped) updateAndSave({ ...user, equippedSkills: user.equippedSkills.filter(s => s !== id) });
-            else if (user.equippedSkills.length < 2) updateAndSave({ ...user, equippedSkills: [...user.equippedSkills, id] });
+            updateAndSave({ ...user, equippedSkills: user.equippedSkills.includes(id) ? user.equippedSkills.filter(s => s !== id) : [...user.equippedSkills, id] });
           }} onUseActive={(id) => {
-            if (id === 'meditation') updateAndSave({ ...user, hp: Math.min(user.maxHp, user.hp + 10) });
+            if (id === 'meditation') updateAndSave({ ...user, hp: Math.min(user.maxHp, user.hp + 15) });
           }} />}
 
           {selectedInventoryItem && (
@@ -568,45 +465,22 @@ const App: React.FC = () => {
   );
 };
 
-const EquipmentSlotComponent: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: InventoryItem) => void }> = ({ slot, user, onSelect }) => {
+const EquipSlot: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: InventoryItem) => void }> = ({ slot, user, onSelect }) => {
   const itemId = user.equipment[slot];
   const item = itemId ? SHOP_ITEMS.find(i => i.id === itemId) : null;
-  
-  const labels: Record<EquipmentSlot, string> = {
-    head: 'Cabeça',
-    body: 'Torso',
-    acc1: 'Acc 1',
-    acc2: 'Acc 2',
-    special: 'Acc 3'
-  };
-
-  const icons: Record<EquipmentSlot, string> = {
-    head: '👤',
-    body: '👕',
-    acc1: '💍',
-    acc2: '💍',
-    special: '✨'
-  };
-
-  const isLegendary = item?.rarity === 'lendario';
+  const icons: Record<EquipmentSlot, string> = { head: '👤', body: '👕', acc1: '💍', acc2: '💍', special: '✨' };
+  const rarity = item ? (RARITIES[item.rarity] || RARITIES.comum) : null;
 
   return (
     <div 
       onClick={() => item && onSelect(item)}
-      className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer 
-        ${item 
-          ? (isLegendary 
-              ? 'animate-equip-legendary bg-amber-500/10' 
-              : 'animate-equip bg-indigo-500/10'
-            ) 
-          : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'
-        }`}
+      className={`w-20 h-20 rounded-[1.8rem] border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer pointer-events-auto shadow-xl
+        ${item ? (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110') : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}
+      `}
     >
-      <span className="text-2xl">{item ? item.icon : icons[slot]}</span>
-      <span className="text-[7px] font-black uppercase text-zinc-600 absolute -bottom-4">{labels[slot]}</span>
-      {item && (
-        <div className={`absolute inset-0 rounded-2xl ring-2 ${isLegendary ? 'ring-amber-400/20' : 'ring-indigo-400/20'}`} />
-      )}
+      <span className="text-3xl">{item ? item.icon : icons[slot]}</span>
+      <span className="text-[6px] font-black uppercase text-zinc-600 absolute -bottom-5 tracking-widest">{slot}</span>
+      {item && <div className="absolute inset-0 rounded-[1.8rem] ring-2 ring-white/10" />}
     </div>
   );
 };
