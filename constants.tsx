@@ -41,23 +41,23 @@ export const CAMPAIGN_CHAPTERS: CampaignMission[] = [
 ];
 
 export const SHOP_ITEMS: InventoryItem[] = [
-  { id: 'potion-0', name: 'Maçã Curativa', price: 5, description: 'Recupera 5 de HP.', lore: 'Fruta fresca colhida nos Pomares de Éden. Um lanche rápido para feridas leves.', type: 'buff', icon: '🍎' },
-  { id: 'potion-1', name: 'Poção de Foco', price: 20, description: 'Recupera 20 de HP.', lore: 'Uma mistura alquímica que aguça os sentidos e cura o corpo fadigado.', type: 'buff', icon: '🧪' },
+  { id: 'potion-0', name: 'Maçã Curativa', rarity: 'comum', price: 5, description: 'Recupera 5 de HP.', lore: 'Fruta fresca colhida nos Pomares de Éden.', type: 'buff', icon: '🍎' },
+  { id: 'potion-1', name: 'Poção de Foco', rarity: 'raro', price: 20, description: 'Recupera 20 de HP.', lore: 'Uma mistura alquímica que aguça os sentidos.', type: 'buff', icon: '🧪' },
   
-  { id: 'head-0', name: 'Capuz do Aprendiz', price: 50, description: '+5% de ganho de XP.', lore: 'Um tecido leve imbuído com runas básicas de percepção. Aumenta o foco mental do usuário.', type: 'equipment', slot: 'head', boostValue: 5, statBoost: 'XP', icon: '👤' },
-  { id: 'head-1', name: 'Elmo de Ferro', price: 200, description: '+10% de Vitalidade Máxima.', lore: 'Forjado nas forjas de Ironhold. Oferece proteção robusta contra golpes pesados e distrações.', type: 'equipment', slot: 'head', boostValue: 10, statBoost: 'HP', icon: '🪖' },
-  { id: 'head-legend', name: 'Coroa do Rei', price: 800, description: '+25% de ganho de Ouro.', lore: 'Antigo artefato da Dinastia de Ouro. O brilho da realeza atrai riqueza e sorte divina.', type: 'equipment', slot: 'head', boostValue: 25, statBoost: 'Gold', icon: '👑', isAnimated: true },
+  { id: 'head-0', name: 'Capuz do Aprendiz', rarity: 'comum', price: 50, description: '+5% de ganho de XP.', lore: 'Um tecido leve imbuído com runas básicas.', type: 'equipment', slot: 'head', boostValue: 5, statBoost: 'XP', icon: '👤' },
+  { id: 'head-1', name: 'Elmo de Ferro', rarity: 'raro', price: 200, description: '+10% de Vitalidade Máxima.', lore: 'Forjado nas forjas de Ironhold.', type: 'equipment', slot: 'head', boostValue: 10, statBoost: 'HP', icon: '🪖' },
+  { id: 'head-legend', name: 'Coroa do Rei', rarity: 'lendario', price: 800, description: '+25% de ganho de Ouro.', lore: 'Antigo artefato da Dinastia de Ouro.', type: 'equipment', slot: 'head', boostValue: 25, statBoost: 'Gold', icon: '👑', isAnimated: true },
   
-  { id: 'body-0', name: 'Túnica de Couro', price: 80, description: '+5% de ganho de Ouro.', lore: 'Feita de couro de javali selvagem. Flexível o suficiente para movimentos rápidos e sorrateiros.', type: 'equipment', slot: 'body', boostValue: 5, statBoost: 'Gold', icon: '👕' },
-  { id: 'body-1', name: 'Armadura de Placas', price: 500, description: '+15% de Vitalidade Máxima.', lore: 'Várias camadas de aço dobrado. O herói se torna uma muralha intransponível contra o cansaço.', type: 'equipment', slot: 'body', boostValue: 15, statBoost: 'HP', icon: '🛡️' },
+  { id: 'body-0', name: 'Túnica de Couro', rarity: 'comum', price: 80, description: '+5% de ganho de Ouro.', lore: 'Feita de couro de javali selvagem.', type: 'equipment', slot: 'body', boostValue: 5, statBoost: 'Gold', icon: '👕' },
+  { id: 'body-1', name: 'Armadura de Placas', rarity: 'epico', price: 500, description: '+15% de Vitalidade Máxima.', lore: 'Várias camadas de aço dobrado.', type: 'equipment', slot: 'body', boostValue: 15, statBoost: 'HP', icon: '🛡️' },
 
-  { id: 'acc-0', name: 'Anel de Cobre', price: 40, description: '+2% de ganho de XP.', lore: 'Um pequeno anel que canaliza a energia residual de tarefas concluídas para a alma do portador.', type: 'equipment', slot: 'acc1', boostValue: 2, statBoost: 'XP', icon: '💍' },
-  { id: 'acc-1', name: 'Amuleto da Sorte', price: 150, description: '+8% de ganho de Ouro.', lore: 'Dizem que este trevo de quatro folhas nunca murcha sob a luz da lua, trazendo prosperidade.', type: 'equipment', slot: 'acc2', boostValue: 8, statBoost: 'Gold', icon: '📿' },
+  { id: 'acc-0', name: 'Anel de Cobre', rarity: 'comum', price: 40, description: '+2% de ganho de XP.', lore: 'Um pequeno anel que canaliza energia residual.', type: 'equipment', slot: 'acc1', boostValue: 2, statBoost: 'XP', icon: '💍' },
+  { id: 'acc-1', name: 'Amuleto da Sorte', rarity: 'raro', price: 150, description: '+8% de ganho de Ouro.', lore: 'Dizem que este trevo nunca murcha.', type: 'equipment', slot: 'acc2', boostValue: 8, statBoost: 'Gold', icon: '📿' },
 
-  { id: 'spec-0', name: 'Manto do Mago', price: 1000, description: '+25% de ganho de XP.', lore: 'Tecido com fios de seda arcana. Absorve o conhecimento do ambiente como uma esponja mística.', type: 'equipment', slot: 'special', boostValue: 25, statBoost: 'XP', icon: '🧥', isAnimated: true },
+  { id: 'spec-0', name: 'Manto do Mago', rarity: 'lendario', price: 1000, description: '+25% de ganho de XP.', lore: 'Tecido com fios de seda arcana.', type: 'equipment', slot: 'special', boostValue: 25, statBoost: 'XP', icon: '🧥', isAnimated: true },
   
-  { id: 'skin-royal', name: 'Traje Real', price: 300, description: 'Alteração visual completa.', lore: 'Tecidos de seda púrpura e fios de ouro puro. Para heróis que buscam prestígio e reconhecimento.', type: 'skin', icon: '🎭', isAnimated: true },
-  { id: 'skin-dark', name: 'Manto das Sombras', price: 450, description: 'Aura sombria constante.', lore: 'Uma peça que parece absorver a luz ao redor, tornando o usuário um espectro entre os vivos.', type: 'skin', icon: '🕶️', isAnimated: true },
+  { id: 'skin-royal', name: 'Traje Real', rarity: 'epico', price: 300, description: 'Alteração visual completa.', lore: 'Tecidos de seda púrpura e fios de ouro puro.', type: 'skin', icon: '🎭', isAnimated: true },
+  { id: 'skin-dark', name: 'Manto das Sombras', rarity: 'lendario', price: 450, description: 'Aura sombria constante.', lore: 'Uma peça que parece absorver a luz ao redor.', type: 'skin', icon: '🕶️', isAnimated: true },
 ];
 
 export const THEMES = {

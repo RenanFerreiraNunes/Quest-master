@@ -58,6 +58,7 @@ export interface InventoryItem {
   icon: string;
   themeClass?: string; 
   isAnimated?: boolean;
+  rarity: Rarity; // Campo adicionado
   quantity?: number; 
 }
 
@@ -84,7 +85,7 @@ export interface User {
   gold: number;
   hp: number;
   maxHp: number;
-  isBroken: boolean; // Estado de exaustão crítica
+  isBroken: boolean;
   inventoryCapacity: number;
   activeTheme: string; 
   tasks: Task[];

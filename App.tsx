@@ -24,6 +24,10 @@ const App: React.FC = () => {
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [damageEffect, setDamageEffect] = useState(false);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
+
+  // States para busca e filtro de inventário
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [inventoryCategory, setInventoryCategory] = useState<'all' | 'equipment' | 'buff' | 'cosmetic'>('all');
   
   const [aiMessage, setAiMessage] = useState<string>('O mestre da guilda observa sua coragem...');
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -215,6 +219,17 @@ const App: React.FC = () => {
     setIsCreatingCharacter(false);
   };
 
+  // Lógica de filtragem de inventário
+  const filteredInventory = user?.inventory.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || 
+                          item.description.toLowerCase().includes(inventorySearch.toLowerCase());
+    const matchesCategory = inventoryCategory === 'all' || 
+                            (inventoryCategory === 'equipment' && item.type === 'equipment') ||
+                            (inventoryCategory === 'buff' && item.type === 'buff') ||
+                            (inventoryCategory === 'cosmetic' && (item.type === 'skin' || item.type === 'theme'));
+    return matchesSearch && matchesCategory;
+  }) || [];
+
   if (isCreatingCharacter) return <CharacterCreator onComplete={handleCharacterCreation} />;
   if (!user) return (
     <div className="min-h-screen relative flex items-center justify-center p-4 bg-zinc-950">
@@ -275,9 +290,128 @@ const App: React.FC = () => {
             ))}
           </nav>
 
+          {activeTab === 'inventory' && (
+            <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-6">
+              <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="space-y-4">
+                  <h2 className="text-5xl font-rpg uppercase">Sua <span className="text-indigo-500">Mochila</span></h2>
+                  <div className="flex gap-4 items-center">
+                     <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 px-3 py-1 rounded-lg">Carga: {user.inventory.length}/{user.inventoryCapacity}</span>
+                  </div>
+                </div>
+
+                {/* Filtros e Busca */}
+                <div className="flex flex-col md:flex-row gap-4 flex-1 max-w-2xl">
+                  <div className="relative flex-1 group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-500 transition-colors">🔍</span>
+                    <input 
+                      type="text" 
+                      placeholder="Procurar item..." 
+                      value={inventorySearch}
+                      onChange={e => setInventorySearch(e.target.value)}
+                      className="w-full bg-zinc-900/40 border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-xs font-bold outline-none focus:border-indigo-500/50 transition-all shadow-inner"
+                    />
+                  </div>
+                  <div className="flex gap-2 bg-zinc-900/20 p-1.5 rounded-2xl border border-zinc-800">
+                    {[
+                      {id: 'all', l: 'Tudo'}, 
+                      {id: 'equipment', l: '⚔️'}, 
+                      {id: 'buff', l: '🧪'}, 
+                      {id: 'cosmetic', l: '🎭'}
+                    ].map(cat => (
+                      <button 
+                        key={cat.id} 
+                        onClick={() => setInventoryCategory(cat.id as any)}
+                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${inventoryCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                      >
+                        {cat.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </header>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* Battle Card Section */}
+                <div className="lg:col-span-5 flex flex-col items-center">
+                  <div className="relative w-full aspect-[4/5] bg-zinc-900/30 border border-zinc-800 rounded-[4rem] flex items-center justify-center p-12 overflow-hidden shadow-2xl">
+                    <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
+                    
+                    {/* Equipment Slots Grid */}
+                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-8">
+                      <div className="col-start-2 flex items-center justify-center">
+                        <EquipmentSlotComponent slot="head" user={user} onSelect={setSelectedInventoryItem} />
+                      </div>
+                      <div className="row-start-2 col-start-1 flex items-center justify-center">
+                        <EquipmentSlotComponent slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
+                      </div>
+                      <div className="row-start-2 col-start-3 flex items-center justify-center">
+                        <EquipmentSlotComponent slot="acc2" user={user} onSelect={setSelectedInventoryItem} />
+                      </div>
+                      <div className="row-start-3 col-start-2 flex items-center justify-center">
+                        <EquipmentSlotComponent slot="body" user={user} onSelect={setSelectedInventoryItem} />
+                      </div>
+                      <div className="row-start-3 col-start-3 flex items-center justify-center">
+                        <EquipmentSlotComponent slot="special" user={user} onSelect={setSelectedInventoryItem} />
+                      </div>
+                    </div>
+
+                    <div className="z-10 bg-zinc-950/40 p-10 rounded-full border border-zinc-800/50 shadow-inner">
+                      <HeroAvatar appearance={user.appearance} user={user} size={220} className="drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* List Section com Raridade */}
+                <div className="lg:col-span-7 space-y-6">
+                  <div className="grid grid-cols-3 md:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto pr-4 scrollbar-hide">
+                    {filteredInventory.map((item, idx) => {
+                      const isEquipped = Object.values(user.equipment).includes(item.id);
+                      const rarityConfig = RARITIES[item.rarity];
+                      
+                      return (
+                        <div 
+                          key={`${item.id}-${idx}`} 
+                          onClick={() => setSelectedInventoryItem(item)}
+                          className={`group aspect-square relative p-4 rounded-3xl border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 
+                            ${rarityConfig.color.split(' ')[1]} 
+                            ${rarityConfig.bg}
+                            ${isEquipped ? 'ring-2 ring-white/20' : ''}
+                            ${item.rarity === 'lendario' ? 'animate-pulse' : ''}`}
+                        >
+                          {/* Aura de Raridade */}
+                          <div className={`absolute inset-0 rounded-3xl opacity-10 pointer-events-none transition-opacity group-hover:opacity-20 ${rarityConfig.bg}`} />
+                          
+                          <span className="text-4xl block group-hover:scale-110 transition-transform relative z-10">{item.icon}</span>
+                          <h4 className="text-[8px] font-black uppercase text-center truncate w-full text-zinc-400 relative z-10">{item.name}</h4>
+                          
+                          {isEquipped && (
+                            <span className="absolute top-2 right-2 text-[6px] bg-white text-black px-2 py-0.5 rounded-full font-black z-20">EQUIP</span>
+                          )}
+                          
+                          {/* Tag de Raridade */}
+                          <span className={`absolute bottom-2 text-[6px] font-black uppercase tracking-tighter ${rarityConfig.color.split(' ')[0]}`}>
+                            {item.rarity}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {filteredInventory.length === 0 && (
+                      <div className="col-span-full py-20 text-center space-y-4 bg-zinc-900/10 rounded-[3rem] border border-dashed border-zinc-800">
+                         <span className="text-4xl opacity-20">🕳️</span>
+                         <p className="text-[10px] font-black uppercase text-zinc-700 tracking-[0.3em]">Nenhum item encontrado nesta busca</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Outras Abas (Quests, Campaign, Profile, etc) permanecem as mesmas do arquivo original */}
           {activeTab === 'quests' && (
             <div className="max-w-5xl mx-auto space-y-16">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {!user.isBroken && (
                   <button onClick={()=>setShowQuestCreator(true)} className="bg-zinc-900/20 border-4 border-dashed border-zinc-800 p-8 rounded-[3rem] flex items-center gap-6 hover:border-red-600/30 transition-all">
                     <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center text-xl">＋</div>
@@ -291,7 +425,6 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
-
               {showQuestCreator && <QuestStepper onCancel={()=>setShowQuestCreator(false)} onComplete={data => {
                 const task: Task = {
                   id: Math.random().toString(36).substr(2,9), title: data.title, rarity: data.rarity, difficulty: data.difficulty,
@@ -301,7 +434,6 @@ const App: React.FC = () => {
                 updateAndSave({...user, tasks: [task, ...user.tasks]});
                 setShowQuestCreator(false);
               }} />}
-
               <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-500">Mural de Contratos</h3>
                 {user.tasks.filter(t => !t.done).map(task => {
@@ -310,7 +442,6 @@ const App: React.FC = () => {
                   let totalElapsedMs = task.accumulatedTimeMs + (task.startTime ? (currentTime - task.startTime) : 0);
                   const progress = Math.min(100, (totalElapsedMs / (task.minDurationSeconds * 1000)) * 100);
                   const timeLeft = Math.max(0, Math.floor(task.minDurationSeconds - (totalElapsedMs / 1000)));
-
                   return (
                     <div key={task.id} className={`p-8 border-2 ${config.color} ${config.bg} rounded-[3.5rem] relative overflow-hidden shadow-xl transition-all`}>
                       <div className="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
@@ -343,86 +474,6 @@ const App: React.FC = () => {
                   );
                 })}
               </section>
-            </div>
-          )}
-
-          {activeTab === 'inventory' && (
-            <div className="max-w-6xl mx-auto space-y-12 animate-in slide-in-from-bottom-6">
-              <header className="space-y-4">
-                <h2 className="text-5xl font-rpg uppercase">Sua <span className="text-indigo-500">Mochila</span></h2>
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Gerencie seus equipamentos e use consumíveis</p>
-              </header>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                {/* Battle Card Section */}
-                <div className="lg:col-span-5 flex flex-col items-center">
-                  <div className="relative w-full aspect-[4/5] bg-zinc-900/30 border border-zinc-800 rounded-[4rem] flex items-center justify-center p-12 overflow-hidden shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
-                    
-                    {/* Equipment Slots Grid */}
-                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-8">
-                      {/* Top: Head */}
-                      <div className="col-start-2 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="head" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                      
-                      {/* Mid: Accessories */}
-                      <div className="row-start-2 col-start-1 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                      <div className="row-start-2 col-start-3 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="acc2" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-
-                      {/* Bottom: Body & Special */}
-                      <div className="row-start-3 col-start-2 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="body" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                      <div className="row-start-3 col-start-3 flex items-center justify-center">
-                        <EquipmentSlotComponent slot="special" user={user} onSelect={setSelectedInventoryItem} />
-                      </div>
-                    </div>
-
-                    {/* Central Hero */}
-                    <div className="z-10 bg-zinc-950/40 p-10 rounded-full border border-zinc-800/50 shadow-inner">
-                      <HeroAvatar appearance={user.appearance} user={user} size={220} className="drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]" />
-                    </div>
-                  </div>
-                  
-                  <div className="mt-8 text-center space-y-2">
-                    <h3 className="font-rpg text-2xl font-black">{user.charClass}</h3>
-                    <div className="flex gap-4">
-                       <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Carga: {user.inventory.length}/{user.inventoryCapacity}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grid List Section */}
-                <div className="lg:col-span-7 space-y-6">
-                  <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest border-b border-zinc-800 pb-4">Itens Armazenados</h3>
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto pr-4 scrollbar-hide">
-                    {user.inventory.map((item, idx) => {
-                      const isEquipped = Object.values(user.equipment).includes(item.id);
-                      return (
-                        <div 
-                          key={`${item.id}-${idx}`} 
-                          onClick={() => setSelectedInventoryItem(item)}
-                          className={`group aspect-square bg-zinc-900/40 p-4 rounded-3xl border-2 cursor-pointer transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 ${isEquipped ? 'border-indigo-500 bg-indigo-500/5 shadow-lg shadow-indigo-500/10' : 'border-zinc-800 hover:border-zinc-700'}`}
-                        >
-                          <span className="text-4xl block group-hover:scale-110 transition-transform">{item.icon}</span>
-                          <h4 className="text-[8px] font-black uppercase text-center truncate w-full text-zinc-400">{item.name}</h4>
-                          {isEquipped && <span className="text-[7px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-black">EQUIPADO</span>}
-                        </div>
-                      );
-                    })}
-                    {Array.from({ length: Math.max(0, user.inventoryCapacity - user.inventory.length) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="aspect-square bg-zinc-950 border-2 border-dashed border-zinc-900 rounded-3xl flex items-center justify-center opacity-20">
-                        <span className="text-[8px] font-black uppercase">Vazio</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
