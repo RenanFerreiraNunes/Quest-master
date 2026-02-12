@@ -248,60 +248,79 @@ const App: React.FC = () => {
                   <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Espaços: {user.inventory.length}/{user.inventoryCapacity}</p>
                 </div>
                 <div className="flex gap-4 w-full md:w-auto">
-                   <input type="text" placeholder="Filtrar por nome..." value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl px-6 py-3 text-xs font-bold flex-1 md:w-64 focus:border-indigo-500 outline-none transition-all" />
+                   <div className="relative flex-1 md:w-80 group">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-500 transition-colors">🔍</span>
+                      <input 
+                        type="text" 
+                        placeholder="Pesquisar nos baús..." 
+                        value={inventorySearch} 
+                        onChange={e=>setInventorySearch(e.target.value)} 
+                        className="w-full bg-zinc-900/60 border border-zinc-800/80 rounded-[2rem] pl-14 pr-6 py-4 text-xs font-bold focus:border-indigo-500/50 focus:ring-4 ring-indigo-500/5 outline-none transition-all placeholder:text-zinc-700" 
+                      />
+                   </div>
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-16">
-                {/* Fixed Character Profile Card with Uniform Spacing */}
-                <div className="lg:col-span-5">
-                  <div className="relative aspect-[3.5/4] bg-zinc-900/40 rounded-[4rem] border-2 border-zinc-800 flex flex-col shadow-2xl overflow-hidden p-8 md:p-14">
-                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-30 pointer-events-none" />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-20">
+                {/* Character Profile Card - Ajustado para melhor centralização e espaçamento */}
+                <div className="lg:col-span-5 flex flex-col items-center">
+                  <div className="relative w-full max-w-[450px] aspect-[0.9/1] bg-zinc-900/40 rounded-[5rem] border-2 border-zinc-800/50 flex flex-col shadow-3xl overflow-hidden p-10 md:p-14 lg:p-16">
+                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-40 pointer-events-none" />
                     
                     {/* Head Slot */}
-                    <div className="flex justify-center mb-4">
+                    <div className="flex justify-center mb-6">
                       <EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
                     {/* Middle Row: Accessories and Hero Avatar */}
-                    <div className="flex items-center justify-between gap-6 flex-1">
-                      <div className="shrink-0"><EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} /></div>
+                    <div className="flex items-center justify-between gap-4 flex-1">
+                      <div className="shrink-0 scale-90 md:scale-100">
+                        <EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
+                      </div>
                       
-                      <div className="relative flex-1 flex justify-center">
-                        <div className="w-40 h-40 md:w-56 md:h-56 bg-zinc-950/60 rounded-full border border-zinc-800/50 flex items-center justify-center shadow-inner relative group">
-                          <HeroAvatar appearance={user.appearance} user={user} size={180} />
-                          <div className="absolute -bottom-4 bg-zinc-900 border border-zinc-700 px-6 py-1.5 rounded-full text-[11px] font-black font-rpg shadow-2xl z-30 ring-2 ring-indigo-500/20">LEVEL {user.level}</div>
+                      <div className="relative flex-1 flex justify-center items-center">
+                        <div className="w-44 h-44 md:w-60 md:h-60 bg-zinc-950/40 rounded-full border border-white/5 flex items-center justify-center shadow-inner relative group">
+                          {/* Glow background for the avatar */}
+                          <div className="absolute inset-0 bg-indigo-500/10 blur-[80px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                          
+                          <HeroAvatar appearance={user.appearance} user={user} size={220} className="relative z-10" />
+                          
+                          <div className="absolute -bottom-5 bg-zinc-900 border border-zinc-700 px-6 py-2 rounded-full text-[12px] font-black font-rpg shadow-2xl z-30 ring-4 ring-zinc-950/80">
+                            LEVEL {user.level}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="shrink-0"><EquipSlot slot="acc2" user={user} onSelect={setSelectedInventoryItem} /></div>
+                      <div className="shrink-0 scale-90 md:scale-100">
+                        <EquipSlot slot="acc2" user={user} onSelect={setSelectedInventoryItem} />
+                      </div>
                     </div>
 
                     {/* Bottom Row: Body and Special Slots */}
-                    <div className="flex justify-center gap-12 md:gap-24 mt-4">
+                    <div className="flex justify-center gap-12 md:gap-20 mt-6">
                        <EquipSlot slot="body" user={user} onSelect={setSelectedInventoryItem} />
                        <EquipSlot slot="special" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
-                    {/* Stats Summary at Bottom */}
-                    <div className="grid grid-cols-3 gap-3 mt-12">
+                    {/* Quick Stats Panel */}
+                    <div className="grid grid-cols-3 gap-3 mt-14">
                       {[
                         {l: 'Poder', v: '+12%', i: '⚔️'},
                         {l: 'Defesa', v: '+8%', i: '🛡️'},
                         {l: 'Sorte', v: '+5%', i: '🍀'}
                       ].map(s => (
-                        <div key={s.l} className="bg-black/30 border border-zinc-800/30 p-2 md:p-3 rounded-2xl text-center shadow-lg transition-all hover:bg-black/50">
-                           <p className="text-[7px] text-zinc-600 uppercase font-black tracking-widest">{s.l}</p>
-                           <p className="text-[10px] font-black text-zinc-300">{s.v}</p>
+                        <div key={s.l} className="bg-black/40 border border-white/5 p-3 rounded-2xl text-center shadow-lg transition-all hover:bg-black/60 hover:scale-105 group">
+                           <p className="text-[8px] text-zinc-600 group-hover:text-zinc-400 uppercase font-black tracking-widest mb-1">{s.l}</p>
+                           <p className="text-[11px] font-black text-zinc-300">{s.v}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                {/* Inventory Grid - Increased spacing and fixed clipping */}
+                {/* Inventory Grid - Corrigido espaçamento e clipping */}
                 <div className="lg:col-span-7">
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-6 overflow-y-auto p-4 max-h-[750px] scrollbar-hide overflow-x-visible">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-6 overflow-y-auto p-2 pb-10 max-h-[850px] scrollbar-hide overflow-x-visible">
                     {filteredInventory.map((item, idx) => {
                       const isEquipped = Object.values(user.equipment).includes(item.id);
                       const rarity = RARITIES[item.rarity] || RARITIES.comum;
@@ -309,30 +328,31 @@ const App: React.FC = () => {
                         <div 
                           key={`${item.id}-${idx}`}
                           onClick={() => setSelectedInventoryItem(item)}
-                          className={`group aspect-square relative rounded-[2.5rem] border-2 cursor-pointer transition-all hover:scale-105 hover:z-20 flex flex-col items-center justify-center gap-2 ${rarity.color.split(' ')[1]} ${rarity.bg} ${isEquipped ? 'ring-4 ring-white/10' : ''}`}
+                          className={`group aspect-square relative rounded-[3rem] border-2 cursor-pointer transition-all hover:scale-110 hover:z-20 flex flex-col items-center justify-center gap-3 ${rarity.color.split(' ')[1]} ${rarity.bg} ${isEquipped ? 'ring-4 ring-indigo-500/20 shadow-indigo-500/10' : 'hover:shadow-2xl'}`}
                         >
-                          <span className="text-3xl md:text-5xl group-hover:scale-110 transition-all drop-shadow-xl">{item.icon}</span>
-                          <span className="text-[9px] md:text-[10px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors truncate px-3 w-full text-center tracking-tighter">{item.name}</span>
+                          <span className="text-4xl md:text-5xl group-hover:scale-125 transition-all drop-shadow-2xl">{item.icon}</span>
+                          <span className="text-[10px] md:text-[11px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors truncate px-4 w-full text-center tracking-tighter">{item.name}</span>
                           
                           {item.quantity && item.quantity > 1 && (
-                            <div className="absolute top-3 right-3 bg-black/80 border border-zinc-700 px-2 py-0.5 rounded-lg text-[9px] font-black text-white z-10 shadow-lg">x{item.quantity}</div>
+                            <div className="absolute top-4 right-4 bg-zinc-950/90 border border-zinc-700 px-2.5 py-0.5 rounded-lg text-[10px] font-black text-indigo-400 z-10 shadow-lg">x{item.quantity}</div>
                           )}
                           
                           {isEquipped && (
-                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white text-black px-4 py-1.5 rounded-full text-[8px] font-black shadow-2xl z-30 whitespace-nowrap border-2 border-zinc-950 uppercase tracking-widest scale-90">Equipado</div>
+                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white px-5 py-2 rounded-full text-[9px] font-black shadow-2xl z-30 whitespace-nowrap border-4 border-zinc-950 uppercase tracking-widest scale-90 animate-in fade-in zoom-in-50">Equipado</div>
                           )}
                           
-                          {/* Legendary Aura */}
-                          {item.rarity === 'lendario' && <div className="absolute inset-0 rounded-[2.5rem] bg-amber-500/5 animate-pulse pointer-events-none" />}
+                          {/* Aura de Raridade Sutil */}
+                          <div className={`absolute inset-0 rounded-[3rem] opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none ${rarity.bg.replace('/10', '/30')}`} />
                           
-                          {/* Rarity Marker */}
-                          <div className={`absolute top-3 left-3 w-2 h-2 rounded-full ${rarity.color.split(' ')[0].replace('text-', 'bg-')} shadow-[0_0_8px_currentColor]`} />
+                          {/* Marcador de Raridade (Dot) */}
+                          <div className={`absolute top-4 left-4 w-2.5 h-2.5 rounded-full ${rarity.color.split(' ')[0].replace('text-', 'bg-')} shadow-[0_0_12px_currentColor]`} />
                         </div>
                       );
                     })}
                     {filteredInventory.length === 0 && (
-                      <div className="col-span-full py-40 border-4 border-dashed border-zinc-800 rounded-[4rem] text-center opacity-40">
-                        <span className="text-sm font-black uppercase tracking-[0.6em] text-zinc-700">Nada encontrado</span>
+                      <div className="col-span-full py-48 border-4 border-dashed border-zinc-900 rounded-[5rem] flex flex-col items-center justify-center gap-4 opacity-40">
+                        <span className="text-4xl">🕳️</span>
+                        <span className="text-sm font-black uppercase tracking-[0.8em] text-zinc-700">Mochila Vazia</span>
                       </div>
                     )}
                   </div>
@@ -441,18 +461,18 @@ const EquipSlot: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: In
     <div className="flex flex-col items-center gap-2">
       <div 
         onClick={() => item && onSelect(item)}
-        className={`w-14 h-14 md:w-20 md:h-20 rounded-[2.2rem] border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer shadow-2xl
+        className={`w-16 h-16 md:w-24 md:h-24 rounded-[2.5rem] border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer shadow-2xl
           ${item 
             ? (item.rarity === 'lendario' 
-                ? 'animate-equip-legendary border-amber-500 scale-110 z-20 shadow-[0_0_20px_rgba(245,158,11,0.4)]' 
-                : (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110 z-10 shadow-[0_0_15px_rgba(255,255,255,0.1)]')) 
+                ? 'animate-equip-legendary border-amber-500 scale-110 z-20' 
+                : (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110 z-10 shadow-[0_0_20px_rgba(255,255,255,0.1)]')) 
             : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-900/60'}
         `}
       >
-        <span className="text-3xl md:text-5xl drop-shadow-2xl">{item ? item.icon : icons[slot]}</span>
-        {item && <div className="absolute inset-0 rounded-[2.2rem] ring-2 ring-white/10" />}
+        <span className="text-3xl md:text-5xl drop-shadow-2xl transition-transform group-hover:scale-110">{item ? item.icon : icons[slot]}</span>
+        {item && <div className="absolute inset-0 rounded-[2.5rem] ring-4 ring-white/5" />}
       </div>
-      <span className="text-[7px] md:text-[8px] font-black uppercase text-zinc-600 tracking-[0.2em] text-center whitespace-nowrap">{labels[slot]}</span>
+      <span className="text-[8px] md:text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em] text-center whitespace-nowrap mt-1">{labels[slot]}</span>
     </div>
   );
 };
