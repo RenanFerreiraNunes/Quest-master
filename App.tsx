@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Task, Rarity, InventoryItem, Difficulty, CharacterClass, Appearance, EquipmentSlot, Skill } from './types';
 import { db } from './services/db';
 import { geminiService } from './services/gemini';
@@ -31,7 +31,9 @@ const App: React.FC = () => {
   
   const [aiMessage, setAiMessage] = useState<string>('O mestre da guilda observa sua coragem...');
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [scrollPos, setScrollPos] = useState(0);
 
+  const mainRef = useRef<HTMLElement>(null);
   const currentTheme = THEMES[user?.activeTheme as keyof typeof THEMES] || THEMES['theme-default'];
 
   useEffect(() => {
@@ -49,6 +51,10 @@ const App: React.FC = () => {
       }
     }
   }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    setScrollPos(e.currentTarget.scrollTop);
+  };
 
   const fetchAiGreeting = async (u: User) => {
     const msg = await geminiService.getMotivationalMessage(u.nickname, u.level, u.tasks.filter(t => !t.done).length);
@@ -272,8 +278,15 @@ const App: React.FC = () => {
           <button onClick={() => { db.logout(); window.location.reload(); }} className="py-4 rounded-2xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-600 hover:text-red-500 tracking-[0.3em] transition-all">Retirar-se</button>
         </aside>
 
-        <main className="flex-1 overflow-y-auto relative p-4 md:p-10 z-10 scrollbar-hide">
-          <ChromaGrid color={currentTheme.primary === 'red-600' ? 'rgba(220, 38, 38, 0.05)' : 'rgba(255,255,255,0.03)'} />
+        <main 
+          ref={mainRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto relative p-4 md:p-10 z-10 scrollbar-hide"
+        >
+          <ChromaGrid 
+            scrollOffset={scrollPos}
+            color={currentTheme.primary === 'red-600' ? 'rgba(220, 38, 38, 0.05)' : 'rgba(255,255,255,0.03)'} 
+          />
           
           <nav className="flex items-center gap-4 mb-12 overflow-x-auto pb-6 sticky top-0 z-40 bg-zinc-950/20 backdrop-blur-md">
             {[
