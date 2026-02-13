@@ -31,8 +31,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
     setCheatInput('');
   };
 
+  // Fix: Use the user object directly for exportHero as implemented in the db service
   const handleExport = () => {
-    const code = db.exportHero(user.email);
+    const code = db.exportHero(user);
     if (code) {
       navigator.clipboard.writeText(code);
       setCopyFeedback(true);
@@ -40,10 +41,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
     }
   };
 
-  const handleImport = () => {
+  // Fix: Make handleImport async to await the asynchronous db.importHero operation
+  const handleImport = async () => {
     const code = prompt("Cole o código da alma do herói que deseja importar para este reino:");
     if (code) {
-      const success = db.importHero(code);
+      const success = await db.importHero(code);
       if (success) alert("Herói importado com sucesso! Agora você pode encontrá-lo na aba Social.");
       else alert("Código inválido. Certifique-se de que copiou o código completo.");
     }

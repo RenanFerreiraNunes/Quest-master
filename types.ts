@@ -43,7 +43,7 @@ export interface Task {
   accumulatedTimeMs: number; 
   isPaused: boolean;
   done: boolean;
-  failed?: boolean; // Novo: rastreia se a missão foi abandonada
+  failed?: boolean;
   doneAt?: number;
   createdAt: number;
   activeSkillApplied?: string;
@@ -94,6 +94,15 @@ export interface Guild {
   requiredLevel: number;
 }
 
+export interface ClassAbility {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  cooldownSeconds: number;
+  type: 'buff' | 'instant';
+}
+
 export interface User {
   email: string;
   nickname: string;
@@ -114,9 +123,10 @@ export interface User {
   equippedSkills: string[];
   equipment: Record<EquipmentSlot, string | null>;
   campaignProgress: number; 
-  friends: string[]; // Lista de emails
+  friends: string[];
   friendRequests: FriendRequest[];
   guildId: string | null;
+  lastAbilityUse?: Record<string, number>; // Rastreia cooldown por habilidade
 }
 
 export interface RarityConfig {

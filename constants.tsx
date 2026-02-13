@@ -1,5 +1,5 @@
 
-import { Rarity, RarityConfig, InventoryItem, Difficulty, CharacterClass, Skill, CampaignMission, Appearance } from './types';
+import { Rarity, RarityConfig, InventoryItem, Difficulty, CharacterClass, Skill, CampaignMission, Appearance, ClassAbility } from './types';
 
 export const BASE_INVENTORY_CAPACITY = 15;
 export const BASE_MIN_TIME_MINUTES = 5;
@@ -47,23 +47,48 @@ export const AVATAR_PRESETS: { name: string, appearance: Appearance, class: Char
     class: 'Paladino',
     appearance: { skinColor: '#ffdbac', hairStyle: 'mohawk', hairColor: '#ffffff', eyeStyle: 'large', eyeColor: '#fbbf24', expression: 'happy', outfitColor: '#71717a' }
   },
-  { 
-    name: 'Elfo da Floresta', 
-    class: 'Ladino',
-    appearance: { skinColor: '#e0ac69', hairStyle: 'long', hairColor: '#166534', eyeStyle: 'sharp', eyeColor: '#4ade80', expression: 'neutral', outfitColor: '#14532d' }
-  },
-  { 
-    name: 'Guerreiro Morto-Vivo', 
-    class: 'Guerreiro',
-    appearance: { skinColor: '#94a3b8', hairStyle: 'none', hairColor: '#000000', eyeStyle: 'glow', eyeColor: '#ef4444', expression: 'angry', outfitColor: '#0f172a' }
-  }
 ];
 
-export const CLASS_STATS: Record<CharacterClass, { hp: number, xpMod: number, goldMod: number, activeSkill: string, description: string }> = {
-  Guerreiro: { hp: 150, xpMod: 1.0, goldMod: 1.2, activeSkill: 'fury', description: 'Focado em força e ganhos de ouro massivos.' },
-  Mago: { hp: 80, xpMod: 1.3, goldMod: 1.0, activeSkill: 'meditation', description: 'Mestre da mente, ganha experiência muito mais rápido.' },
-  Ladino: { hp: 100, xpMod: 1.15, goldMod: 1.15, activeSkill: 'greed', description: 'Equilibrado e ágil, com bônus em ambos os recursos.' },
-  Paladino: { hp: 200, xpMod: 1.1, goldMod: 1.1, activeSkill: 'iron_skin', description: 'Tanque supremo com alta regeneração e equilíbrio.' },
+export const CLASS_ABILITIES: Record<CharacterClass, ClassAbility> = {
+  Guerreiro: {
+    id: 'berserk',
+    name: 'Berserk',
+    description: 'Avança 15% do progresso de todas as missões ativas instantaneamente.',
+    icon: '💢',
+    cooldownSeconds: 300,
+    type: 'instant'
+  },
+  Mago: {
+    id: 'arcane_intellect',
+    name: 'Intelecto Arcano',
+    description: 'Ganha 100 XP instantaneamente através de meditação profunda.',
+    icon: '🔮',
+    cooldownSeconds: 600,
+    type: 'instant'
+  },
+  Ladino: {
+    id: 'master_thief',
+    name: 'Mestre Ladino',
+    description: 'Saqueia 50 de ouro dos tesouros perdidos do reino.',
+    icon: '💰',
+    cooldownSeconds: 450,
+    type: 'instant'
+  },
+  Paladino: {
+    id: 'divine_grace',
+    name: 'Graça Divina',
+    description: 'Cura 30 de vida invocando a luz sagrada.',
+    icon: '✨',
+    cooldownSeconds: 300,
+    type: 'instant'
+  }
+};
+
+export const CLASS_STATS: Record<CharacterClass, { hp: number, xpMod: number, goldMod: number, description: string, passive: string }> = {
+  Guerreiro: { hp: 150, xpMod: 1.0, goldMod: 1.2, description: 'Focado em força e ganhos de ouro massivos.', passive: '+20% Ouro' },
+  Mago: { hp: 80, xpMod: 1.3, goldMod: 1.0, description: 'Mestre da mente, ganha experiência muito mais rápido.', passive: '+30% XP' },
+  Ladino: { hp: 100, xpMod: 1.15, goldMod: 1.15, description: 'Equilibrado e ágil, com bônus em ambos os recursos.', passive: '+15% Ouro/XP' },
+  Paladino: { hp: 250, xpMod: 1.0, goldMod: 1.0, description: 'Tanque supremo com vitalidade inigualável.', passive: '+100 Vida Base' },
 };
 
 export const INITIAL_SKILLS: Skill[] = [
@@ -78,29 +103,22 @@ export const CAMPAIGN_CHAPTERS: CampaignMission[] = [
   { id: 'c2', title: 'Recrutamento', description: 'Alcance o Nível 3 para ser notado pela guilda.', requiredLevel: 3, xpReward: 150, goldReward: 50, completed: false, chapter: 2 },
   { id: 'c3', title: 'Prova de Fogo', description: 'Acumule 500 de ouro.', requiredLevel: 5, xpReward: 300, goldReward: 100, completed: false, chapter: 3 },
   { id: 'c4', title: 'Senda Lendária', description: 'Complete uma tarefa Lendária.', requiredLevel: 8, xpReward: 1000, goldReward: 500, completed: false, chapter: 4 },
-  { id: 'c5', title: 'O Vazio Profundo', description: 'Desbloqueie 3 habilidades diferentes.', requiredLevel: 10, xpReward: 2000, goldReward: 800, completed: false, chapter: 5 },
-  { id: 'c6', title: 'Eclipse do Caos', description: 'Acumule 2000 de ouro.', requiredLevel: 15, xpReward: 4000, goldReward: 1500, completed: false, chapter: 6 },
-  { id: 'c7', title: 'Santuário Eterno', description: 'Alcance o Nível 20.', requiredLevel: 20, xpReward: 8000, goldReward: 3000, completed: false, chapter: 7 },
-  { id: 'c8', title: 'Mestre da Alvorada', description: 'Equipe um set completo Lendário.', requiredLevel: 30, xpReward: 20000, goldReward: 10000, completed: false, chapter: 8 },
 ];
 
 export const SHOP_ITEMS: InventoryItem[] = [
-  { id: 'potion-0', name: 'Maçã Curativa', rarity: 'comum', price: 5, description: 'Recupera 5 de HP.', lore: 'Fruta fresca.', type: 'buff', icon: '🍎' },
-  { id: 'potion-1', name: 'Poção de Foco', rarity: 'raro', price: 20, description: 'Recupera 20 de HP.', lore: 'Mistura alquímica.', type: 'buff', icon: '🧪' },
+  { id: 'potion-0', name: 'Maçã Curativa', rarity: 'comum', price: 5, description: 'Recupera 5 de HP.', lore: 'Dizem que um pomar sagrado as produz.', type: 'buff', icon: '🍎' },
+  { id: 'potion-1', name: 'Poção de Foco', rarity: 'raro', price: 20, description: 'Recupera 20 de HP.', lore: 'Gosto amargo, efeito doce.', type: 'buff', icon: '🧪' },
   
-  { id: 'head-0', name: 'Capuz do Aprendiz', rarity: 'comum', price: 50, description: '+5% XP.', type: 'equipment', slot: 'head', icon: '👤' },
-  { id: 'head-1', name: 'Elmo de Ferro', rarity: 'raro', price: 200, description: '+10% HP.', type: 'equipment', slot: 'head', icon: '🪖' },
-  { id: 'head-legend', name: 'Coroa do Rei', rarity: 'lendario', price: 800, description: '+25% Ouro.', type: 'equipment', slot: 'head', icon: '👑', isAnimated: true },
+  { id: 'head-0', name: 'Capuz do Aprendiz', rarity: 'comum', price: 50, description: '+5% de Bônus de Experiência (XP).', lore: 'Simples e funcional para novatos.', type: 'equipment', slot: 'head', statBoost: 'XP', boostValue: 5, icon: '👤' },
+  { id: 'head-1', name: 'Elmo de Ferro', rarity: 'raro', price: 200, description: '+15% de Vida Máxima (HP).', lore: 'Proteção pesada para a mente.', type: 'equipment', slot: 'head', statBoost: 'HP', boostValue: 15, icon: '🪖' },
+  { id: 'head-legend', name: 'Coroa do Rei', rarity: 'lendario', price: 800, description: '+30% de Ganhos de Ouro.', lore: 'O ouro parece ser atraído por ela.', type: 'equipment', slot: 'head', statBoost: 'GOLD', boostValue: 30, icon: '👑', isAnimated: true },
   
-  { id: 'body-0', name: 'Túnica de Couro', rarity: 'comum', price: 80, description: '+5% Ouro.', type: 'equipment', slot: 'body', icon: '👕' },
-  { id: 'body-1', name: 'Armadura de Placas', rarity: 'epico', price: 500, description: '+15% HP.', type: 'equipment', slot: 'body', icon: '🛡️' },
-
-  { id: 'theme-abyssal', name: 'Tema Abissal', rarity: 'epico', price: 400, description: 'Interface em tons roxos profundos.', type: 'theme', icon: '🌌', themeClass: 'theme-abyssal' },
-  { id: 'theme-solar', name: 'Tema Solar', rarity: 'lendario', price: 600, description: 'Interface em tons dourados radiantes.', type: 'theme', icon: '☀️', themeClass: 'theme-solar' },
+  { id: 'body-0', name: 'Túnica de Couro', rarity: 'comum', price: 80, description: '+5% de Ganhos de Ouro.', lore: 'Leve e resistente aos ventos.', type: 'equipment', slot: 'body', statBoost: 'GOLD', boostValue: 5, icon: '👕' },
+  { id: 'body-1', name: 'Armadura de Placas', rarity: 'epico', price: 500, description: '+25% de Vida Máxima (HP).', lore: 'Forjada no vulcão de Ignis.', type: 'equipment', slot: 'body', statBoost: 'HP', boostValue: 25, icon: '🛡️' },
 ];
 
-export const THEMES = {
-  'theme-default': { primary: 'red-600', ring: 'ring-red-600/20', text: 'text-red-500', bg: 'bg-zinc-950', accent: 'red' },
-  'theme-abyssal': { primary: 'indigo-600', ring: 'ring-indigo-600/20', text: 'text-indigo-500', bg: 'bg-zinc-950', accent: 'indigo' },
-  'theme-solar': { primary: 'amber-500', ring: 'ring-amber-500/20', text: 'text-amber-500', bg: 'bg-zinc-950', accent: 'amber' },
+export const THEMES: Record<string, { bg: string, primary: string, accent: string }> = {
+  'theme-default': { bg: 'bg-zinc-950', primary: 'red-600', accent: 'zinc-800' },
+  'theme-paladin': { bg: 'bg-zinc-900', primary: 'amber-500', accent: 'amber-900/20' },
+  'theme-wizard': { bg: 'bg-indigo-950', primary: 'indigo-500', accent: 'indigo-900/20' },
 };

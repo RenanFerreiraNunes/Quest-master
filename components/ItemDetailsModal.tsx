@@ -48,7 +48,7 @@ const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, user, onClose
               <div className="flex gap-3">
                 <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1 rounded-full border ${rarity.color}`}>{item.rarity}</span>
                 {item.quantity && item.quantity > 0 && (
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1 bg-zinc-800 text-indigo-400 rounded-full border border-zinc-700">Estoque: x{item.quantity}</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1 bg-zinc-800 text-indigo-400 rounded-full border border-zinc-700">Quantidade: x{item.quantity}</span>
                 )}
               </div>
             </div>
@@ -56,11 +56,11 @@ const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, user, onClose
 
           <div className="space-y-6">
             <div className="bg-zinc-950 p-6 rounded-3xl border border-zinc-800 shadow-inner">
-              <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-3">Efeito</h4>
+              <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-3">Efeito Místico</h4>
               <p className="text-zinc-100 font-bold text-base leading-relaxed">{item.description}</p>
             </div>
             {item.lore && (
-              <div className="p-6 bg-zinc-800/20 border border-zinc-800/50 rounded-3xl">
+              <div className="p-6 bg-zinc-800/10 border border-zinc-800/50 rounded-3xl">
                 <p className="text-zinc-500 italic text-sm leading-relaxed font-medium">"{item.lore}"</p>
               </div>
             )}
@@ -68,16 +68,21 @@ const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, user, onClose
 
           {comp && (
             <div className="bg-black/40 p-8 rounded-[2.5rem] border border-zinc-800">
+               <h4 className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-6 text-center">Impacto Estatístico</h4>
                <div className="grid grid-cols-3 items-center text-center">
                   <div>
-                    <span className="text-[8px] text-zinc-600 font-black uppercase block mb-1">Equipado</span>
-                    <p className="text-zinc-400 font-bold">{comp.currentVal}%</p>
+                    <span className="text-[8px] text-zinc-500 font-black uppercase block mb-1">Equipado</span>
+                    <p className="text-zinc-400 font-black">{equippedItem ? `${comp.currentVal}%` : '---'}</p>
+                    <p className="text-[7px] text-zinc-600 font-bold uppercase">{equippedItem?.name || 'Nenhum'}</p>
                   </div>
-                  <div className="text-2xl text-zinc-800">→</div>
+                  <div className="text-3xl text-zinc-800">→</div>
                   <div>
-                    <span className="text-[8px] text-zinc-600 font-black uppercase block mb-1">Novo</span>
-                    <p className={`text-xl font-black ${comp.diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <span className="text-[8px] text-zinc-500 font-black uppercase block mb-1">Ao Equipar</span>
+                    <p className={`text-2xl font-black ${comp.diff >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {comp.newVal}% {comp.stat}
+                    </p>
+                    <p className={`text-[8px] font-black uppercase ${comp.diff >= 0 ? 'text-emerald-500/60' : 'text-red-500/60'}`}>
+                      {comp.diff > 0 ? `+${comp.diff}` : comp.diff}% de variação
                     </p>
                   </div>
                </div>
@@ -86,14 +91,15 @@ const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, user, onClose
 
           <div className="flex items-center justify-between pt-6 border-t border-zinc-800">
              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Valor de Mercado</span>
+                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Preço</span>
                 <span className="text-amber-400 font-black text-3xl tracking-tighter">💰 {item.price}</span>
              </div>
              <div className="flex gap-4">
                {onAction && (
                  <button 
                   onClick={() => { onAction(item); onClose(); }}
-                  className="px-12 py-5 rounded-3xl text-xs font-black uppercase tracking-[0.2em] bg-white text-black hover:bg-zinc-200 shadow-3xl transition-all"
+                  className={`px-12 py-5 rounded-3xl text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 ${actionLabel?.includes('Insuficiente') ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' : 'bg-white text-black hover:bg-zinc-200'}`}
+                  disabled={actionLabel?.includes('Insuficiente')}
                  >
                    {actionLabel || 'Confirmar'}
                  </button>
