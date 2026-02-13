@@ -289,7 +289,7 @@ const App: React.FC = () => {
         <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto relative p-6 md:p-10 z-10 scrollbar-hide">
           <ChromaGrid scrollOffset={scrollPos} color={isExhausted ? 'rgba(239, 68, 68, 0.1)' : (currentTheme.primary === 'red-600' ? 'rgba(220, 38, 38, 0.05)' : 'rgba(255,255,255,0.03)')} />
           
-          <nav className="flex items-center gap-4 mb-10 overflow-x-auto pb-4 sticky top-0 z-40 bg-transparent backdrop-blur-md">
+          <nav className="flex items-center gap-4 mb-10 overflow-x-auto pb-4 sticky top-0 z-[100] bg-transparent backdrop-blur-md">
             {[ {id:'quests',l:'Missões',i:'⚔️'}, {id:'campaign',l:'História',i:'🗺️'}, {id:'shop',l:'Bazar',i:'💎'}, {id:'inventory',l:'Mochila',i:'🎒'}, {id:'skills',l:'Talentos',i:'🔥'}, {id:'profile',l:'Herói',i:'🎭'} ].map(tab=>(
               <button key={tab.id} onClick={()=>setActiveTab(tab.id as any)} className={`px-6 py-4 rounded-[2rem] text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center gap-3 shrink-0 ${activeTab===tab.id?'bg-white text-black shadow-3xl scale-105':'bg-zinc-900/50 text-zinc-500 border border-zinc-800 hover:bg-zinc-800'}`}>
                 <span>{tab.i}</span> {tab.l}
@@ -298,44 +298,52 @@ const App: React.FC = () => {
           </nav>
 
           {activeTab === 'inventory' && (
-            <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-32">
+            <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-32 relative z-[20]">
               <header className="flex justify-between items-end">
                 <h2 className="text-5xl font-rpg uppercase text-white">Sua <span className="text-indigo-500">Mochila</span></h2>
                 <div className="relative w-64">
-                  <input type="text" placeholder="Pesquisar itens..." value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:ring-4 ring-indigo-500/10" />
+                  <input type="text" placeholder="Filtrar tesouros..." value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:ring-4 ring-indigo-500/10" />
                 </div>
               </header>
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-                <div className="lg:col-span-7">
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-6 p-2">
-                    {filteredInventory.map((item, idx) => {
-                      const isEquipped = Object.values(user.equipment).includes(item.id);
-                      return (
-                        <div key={`${item.id}-${idx}`} onClick={() => setSelectedInventoryItem(item)} className={`aspect-square relative rounded-[2.5rem] border-2 cursor-pointer transition-all hover:scale-110 flex flex-col items-center justify-center gap-2 ${RARITIES[item.rarity].bg} ${isEquipped ? 'ring-4 ring-indigo-500/30 border-indigo-500 shadow-2xl' : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700'}`}>
-                          <span className="text-4xl drop-shadow-lg">{item.icon}</span>
-                          {item.quantity && item.quantity > 1 && <div className="absolute bottom-3 right-3 px-2 py-0.5 bg-black/80 rounded-lg border border-zinc-700 text-[9px] font-black text-white">x{item.quantity}</div>}
-                          {isEquipped && <div className="absolute -top-1 -right-1 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-[10px] shadow-xl border-2 border-zinc-950">✓</div>}
-                        </div>
-                      );
-                    })}
-                    {user.inventory.length === 0 && <div className="col-span-full py-32 text-center border-4 border-dashed border-zinc-900 rounded-[4rem]"><p className="text-zinc-700 font-black uppercase text-xs tracking-widest">Nenhum item encontrado na jornada</p></div>}
-                  </div>
-                </div>
-                <div className="lg:col-span-5 flex flex-col items-center sticky top-28">
-                  <div className="relative w-full aspect-[0.9/1] bg-zinc-900/20 rounded-[5rem] border-2 border-zinc-800/30 flex flex-col shadow-3xl p-12 backdrop-blur-sm">
-                    <div className="flex justify-center mb-10"><EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} /></div>
-                    <div className="flex items-center justify-between gap-4 flex-1">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                {/* LADO ESQUERDO: PREVIEW DO PERSONAGEM E SLOTS */}
+                <div className="lg:col-span-5 flex flex-col items-center bg-zinc-900/60 backdrop-blur-xl rounded-[4rem] border-2 border-zinc-800/50 p-10 shadow-3xl">
+                  <div className="relative w-full max-w-sm aspect-[0.9/1] flex flex-col items-center justify-between">
+                    {/* Cabeça */}
+                    <div className="w-full flex justify-center">
+                      <EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} />
+                    </div>
+                    {/* Meio: Acessórios e Avatar */}
+                    <div className="w-full flex items-center justify-between gap-4 px-4">
                       <EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
-                      <div className="p-4 bg-zinc-950/40 rounded-[4rem] border border-zinc-800/50 shadow-inner">
-                        <HeroAvatar appearance={user.appearance} user={user} size={200} />
+                      <div className="w-48 h-48 bg-zinc-950/60 rounded-full border-2 border-zinc-800/40 shadow-inner flex items-center justify-center p-4 relative z-10 overflow-hidden">
+                        <HeroAvatar appearance={user.appearance} user={user} size={160} />
                       </div>
                       <EquipSlot slot="acc2" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
-                    <div className="flex justify-center gap-16 mt-10">
+                    {/* Base: Corpo e Especial */}
+                    <div className="w-full flex justify-center gap-12 px-8">
                        <EquipSlot slot="body" user={user} onSelect={setSelectedInventoryItem} />
                        <EquipSlot slot="special" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
-                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] font-black uppercase text-zinc-500 tracking-[0.3em] whitespace-nowrap shadow-2xl">Equipamento Atual</div>
+                    <div className="mt-8 text-center px-6 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-[8px] font-black uppercase text-zinc-500 tracking-[0.4em] shadow-lg">Armaria Ativa</div>
+                  </div>
+                </div>
+
+                {/* LADO DIREITO: GRADE DE ITENS */}
+                <div className="lg:col-span-7 bg-zinc-900/40 backdrop-blur-xl rounded-[4rem] border-2 border-zinc-800/50 p-10 shadow-3xl flex flex-col">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 overflow-y-auto max-h-[600px] p-2 scrollbar-hide flex-1">
+                    {filteredInventory.map((item, idx) => {
+                      const isEquipped = Object.values(user.equipment).includes(item.id);
+                      return (
+                        <div key={`${item.id}-${idx}`} onClick={() => setSelectedInventoryItem(item)} className={`aspect-square relative rounded-[1.8rem] border-2 cursor-pointer transition-all hover:scale-110 flex flex-col items-center justify-center gap-1 ${RARITIES[item.rarity].bg} ${isEquipped ? 'ring-2 ring-indigo-500/50 border-indigo-500 bg-indigo-500/10 shadow-xl scale-95' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}>
+                          <span className="text-3xl drop-shadow-lg">{item.icon}</span>
+                          {item.quantity && item.quantity > 1 && <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/90 rounded-md border border-zinc-700 text-[8px] font-black text-white">x{item.quantity}</div>}
+                          {isEquipped && <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center text-[9px] shadow-lg border-2 border-zinc-950">✓</div>}
+                        </div>
+                      );
+                    })}
+                    {user.inventory.length === 0 && <div className="col-span-full h-64 flex flex-col items-center justify-center border-2 border-dashed border-zinc-800/40 rounded-[3rem]"><span className="text-4xl mb-4 opacity-20">🎒</span><p className="text-zinc-700 font-black uppercase text-[10px] tracking-widest">A jornada ainda não rendeu frutos</p></div>}
                   </div>
                 </div>
               </div>
@@ -343,114 +351,124 @@ const App: React.FC = () => {
           )}
 
           {activeTab === 'profile' && (
-            <div className="max-w-6xl mx-auto space-y-16 animate-in fade-in duration-700 pb-32">
+            <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-32 relative z-[20]">
                <div className="text-center space-y-4">
                   <h2 className="text-7xl font-rpg uppercase tracking-tighter text-white">Sua <span className="text-red-600">Lenda</span></h2>
-                  <p className="text-zinc-500 font-black uppercase tracking-[0.5em] text-xs">A história do mundo será escrita por suas mãos</p>
+                  <p className="text-zinc-500 font-black uppercase tracking-[0.5em] text-xs">A crônica do seu destino em {user.charClass}</p>
                </div>
 
-               {!isEditingProfile ? (
-                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                   <div className="lg:col-span-5 bg-zinc-900/30 rounded-[5rem] border-2 border-zinc-800 p-12 flex flex-col items-center gap-10 shadow-3xl">
-                      <div className="w-full aspect-square bg-zinc-950 rounded-[4rem] border-2 border-zinc-800 flex items-center justify-center shadow-inner relative">
+               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-stretch bg-zinc-900/50 backdrop-blur-xl border-2 border-zinc-800/60 rounded-[5rem] overflow-hidden p-10 shadow-3xl">
+                  {/* ESQUERDA: IDENTIDADE DO HERÓI */}
+                  <div className="lg:col-span-5 flex flex-col items-center gap-10 p-10 bg-zinc-950/40 rounded-[4rem] border border-zinc-800 shadow-inner relative group">
+                     {/* Camada de efeito por trás */}
+                     <div className="absolute inset-0 bg-gradient-to-t from-red-950/10 to-transparent opacity-50 pointer-events-none" />
+                     
+                     <div className="w-full aspect-square bg-zinc-900/60 rounded-[4rem] border-2 border-zinc-800 flex items-center justify-center shadow-3xl relative z-10">
                         <HeroAvatar appearance={user.appearance} user={user} size={280} />
-                      </div>
-                      <div className="text-center space-y-6 w-full">
-                        <h3 className="text-5xl font-rpg text-white tracking-tight">{user.nickname}</h3>
-                        <div className="flex flex-col gap-3">
-                           <div className="px-6 py-2 bg-red-600/10 border border-red-600/30 rounded-full text-red-500 text-xs font-black uppercase tracking-widest">{user.charClass} Nível {user.level}</div>
-                           <div className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest">Membro Honorário da Guilda</div>
-                        </div>
-                        <button onClick={() => setIsEditingProfile(true)} className="w-full py-6 bg-white text-black rounded-[2.5rem] font-black uppercase tracking-[0.2em] text-xs hover:bg-zinc-200 transition-all shadow-xl border-b-4 border-zinc-300 active:scale-95">Editar Aparência</button>
-                      </div>
-                   </div>
-                   <div className="lg:col-span-7 space-y-8">
-                     <div className="p-10 bg-zinc-900/20 rounded-[4rem] border border-zinc-800/50 space-y-8">
-                        <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest flex items-center gap-4"><span className="w-8 h-[2px] bg-zinc-800"></span> Resumo de Atributos <span className="w-8 h-[2px] bg-zinc-800"></span></h4>
-                        <div className="grid grid-cols-2 gap-6">
-                           <div className="p-6 bg-zinc-950 rounded-3xl border border-zinc-800/50 space-y-2">
-                              <span className="text-[8px] font-black text-zinc-600 uppercase">Vitalidade</span>
-                              <p className="text-3xl font-black text-white">{user.maxHp} HP</p>
-                           </div>
-                           <div className="p-6 bg-zinc-950 rounded-3xl border border-zinc-800/50 space-y-2">
-                              <span className="text-[8px] font-black text-zinc-600 uppercase">Fortuna</span>
-                              <p className="text-3xl font-black text-amber-500">{user.gold} G</p>
-                           </div>
-                           <div className="p-6 bg-zinc-950 rounded-3xl border border-zinc-800/50 space-y-2">
-                              <span className="text-[8px] font-black text-zinc-600 uppercase">Capacidade</span>
-                              <p className="text-3xl font-black text-indigo-400">{user.inventory.length}/{user.inventoryCapacity}</p>
-                           </div>
-                           <div className="p-6 bg-zinc-950 rounded-3xl border border-zinc-800/50 space-y-2">
-                              <span className="text-[8px] font-black text-zinc-600 uppercase">Progresso</span>
-                              <p className="text-3xl font-black text-red-500">{Math.floor((user.campaignProgress / CAMPAIGN_CHAPTERS.length) * 100)}%</p>
-                           </div>
-                        </div>
                      </div>
-                     <div className="p-10 bg-zinc-900/20 rounded-[4rem] border border-zinc-800/50 space-y-6">
-                        <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Equipamento Ativo</h4>
-                        <div className="flex flex-wrap gap-4">
-                           {(['head', 'body', 'acc1', 'acc2', 'special'] as EquipmentSlot[]).map(slot => {
-                             const itemId = user.equipment[slot];
-                             const item = itemId ? SHOP_ITEMS.find(i => i.id === itemId) : null;
-                             return (
-                               <div key={slot} className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center text-3xl transition-all ${item ? 'bg-zinc-900 border-indigo-500/50 text-white' : 'bg-zinc-950 opacity-20 border-zinc-800 text-zinc-800'}`}>
-                                 {item ? item.icon : '•'}
+                     
+                     <div className="text-center space-y-8 w-full relative z-10">
+                        <div className="space-y-2">
+                           <input type="text" value={user.nickname} onChange={e=>setUser({...user, nickname: e.target.value})} className="bg-transparent text-5xl font-rpg text-center border-b-2 border-zinc-800/50 focus:border-red-600 outline-none w-full pb-2 transition-all text-white font-bold" />
+                           <div className="flex justify-center gap-3">
+                              <span className="px-5 py-1.5 bg-red-600/10 rounded-full text-red-500 text-[9px] font-black uppercase tracking-widest border border-red-900/30">Lvl {user.level} {user.charClass}</span>
+                           </div>
+                        </div>
+                        
+                        <div className="p-6 bg-zinc-950/80 rounded-3xl border border-zinc-800 space-y-2">
+                           <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest block">Lema do Aventureiro</span>
+                           <p className="text-zinc-400 text-sm italic font-medium">"Pelo aço e pela coragem, meu destino eu forjo."</p>
+                        </div>
+
+                        <button onClick={() => setIsEditingProfile(!isEditingProfile)} className={`w-full py-6 rounded-[2.5rem] font-black uppercase tracking-[0.2em] text-[10px] transition-all shadow-xl border-b-4 active:scale-95 ${isEditingProfile ? 'bg-zinc-800 text-zinc-500 border-zinc-900' : 'bg-white text-black hover:bg-zinc-100 border-zinc-300'}`}>
+                          {isEditingProfile ? 'Sair da Customização' : 'Alterar Traços Visuais'}
+                        </button>
+                     </div>
+                  </div>
+
+                  {/* DIREITA: PAINEL DINÂMICO */}
+                  <div className="lg:col-span-7 flex flex-col">
+                    {!isEditingProfile ? (
+                      <div className="h-full space-y-8 animate-in slide-in-from-right-12 duration-500 flex flex-col">
+                        <div className="p-10 bg-zinc-950/40 rounded-[4rem] border border-zinc-800/50 space-y-10 flex-1">
+                           <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest flex items-center gap-4"><span className="w-8 h-[2px] bg-zinc-800"></span> Registro de Atributos <span className="w-8 h-[2px] bg-zinc-800"></span></h4>
+                           <div className="grid grid-cols-2 gap-6">
+                              <div className="p-8 bg-zinc-900/60 rounded-3xl border border-zinc-800 flex flex-col gap-2 group transition-all hover:bg-zinc-800">
+                                 <span className="text-[10px] font-black text-red-600 uppercase">Vitalidade</span>
+                                 <p className="text-4xl font-black text-white">{user.hp} / {user.maxHp}</p>
+                              </div>
+                              <div className="p-8 bg-zinc-900/60 rounded-3xl border border-zinc-800 flex flex-col gap-2 group transition-all hover:bg-zinc-800">
+                                 <span className="text-[10px] font-black text-amber-500 uppercase">Tesouro</span>
+                                 <p className="text-4xl font-black text-amber-500">💰 {user.gold}</p>
+                              </div>
+                              <div className="p-8 bg-zinc-900/60 rounded-3xl border border-zinc-800 flex flex-col gap-2 group transition-all hover:bg-zinc-800">
+                                 <span className="text-[10px] font-black text-indigo-400 uppercase">Mochila</span>
+                                 <p className="text-4xl font-black text-indigo-400">{user.inventory.length} / {user.inventoryCapacity}</p>
+                              </div>
+                              <div className="p-8 bg-zinc-900/60 rounded-3xl border border-zinc-800 flex flex-col gap-2 group transition-all hover:bg-zinc-800">
+                                 <span className="text-[10px] font-black text-emerald-500 uppercase">Vitórias</span>
+                                 <p className="text-4xl font-black text-emerald-500">{user.tasks.filter(t=>t.done).length} OK</p>
+                              </div>
+                           </div>
+                        </div>
+                        <div className="p-10 bg-zinc-950/40 rounded-[4rem] border border-zinc-800/50 space-y-8">
+                           <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Conjunto de Armas e Armaduras</h4>
+                           <div className="flex flex-wrap gap-6 justify-center">
+                              {(['head', 'body', 'acc1', 'acc2', 'special'] as EquipmentSlot[]).map(slot => {
+                                const itemId = user.equipment[slot];
+                                const item = itemId ? SHOP_ITEMS.find(i => i.id === itemId) : null;
+                                return (
+                                  <div key={slot} className={`w-20 h-20 rounded-[1.8rem] border-2 flex items-center justify-center text-4xl transition-all shadow-xl ${item ? 'bg-zinc-900 border-indigo-500/50 text-white' : 'bg-zinc-950/20 opacity-20 border-zinc-800 text-zinc-800'}`}>
+                                    {item ? item.icon : '•'}
+                                  </div>
+                                );
+                              })}
+                           </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-zinc-950/40 h-full rounded-[5rem] border border-zinc-800/50 p-12 space-y-12 animate-in slide-in-from-right-12 duration-500">
+                         <h3 className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-500 text-center">Laboratório da Identidade</h3>
+                         <div className="space-y-10">
+                            <div className="space-y-4">
+                               <label className="text-[10px] font-black uppercase text-zinc-600">Persona & Expressão</label>
+                               <div className="grid grid-cols-5 gap-3">
+                                  {['neutral', 'happy', 'focused', 'grin', 'tired'].map(exp => (
+                                    <button key={exp} onClick={()=>setUser({...user, appearance: {...user.appearance, expression: exp as any}})} className={`h-16 rounded-3xl border-2 transition-all flex items-center justify-center text-3xl ${user.appearance.expression === exp ? 'border-red-600 bg-red-600/10' : 'border-zinc-800 bg-zinc-950 opacity-40 hover:opacity-100'}`}>
+                                       {exp === 'neutral' ? '😐' : exp === 'happy' ? '😊' : exp === 'focused' ? '🧐' : exp === 'grin' ? '😁' : '😴'}
+                                    </button>
+                                  ))}
                                </div>
-                             );
-                           })}
-                        </div>
-                     </div>
-                   </div>
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 animate-in slide-in-from-bottom-8 duration-700">
-                    <div className="lg:col-span-5 flex flex-col items-center gap-10">
-                       <div className="w-full aspect-square bg-zinc-950 rounded-[4rem] border-2 border-zinc-800 flex items-center justify-center shadow-inner">
-                          <HeroAvatar appearance={user.appearance} user={user} size={280} />
-                       </div>
-                       <button onClick={() => setIsEditingProfile(false)} className="w-full py-5 border-2 border-zinc-800 text-zinc-500 rounded-[2.5rem] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">Cancelar Edição</button>
-                    </div>
-                    <div className="lg:col-span-7 bg-zinc-900/30 rounded-[5rem] border border-zinc-800/50 p-12 space-y-12">
-                       <h3 className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-500 text-center">Painel de Customização</h3>
-                       <div className="space-y-10">
-                          <div className="space-y-4">
-                             <label className="text-[10px] font-black uppercase text-zinc-600">Expressão Facial</label>
-                             <div className="grid grid-cols-5 gap-3">
-                                {['neutral', 'happy', 'focused', 'grin', 'tired'].map(exp => (
-                                  <button key={exp} onClick={()=>setUser({...user, appearance: {...user.appearance, expression: exp as any}})} className={`h-14 rounded-2xl border-2 transition-all flex items-center justify-center text-2xl ${user.appearance.expression === exp ? 'border-red-600 bg-red-600/10' : 'border-zinc-800 bg-zinc-950 opacity-40 hover:opacity-100'}`}>
-                                     {exp === 'neutral' ? '😐' : exp === 'happy' ? '😊' : exp === 'focused' ? '🧐' : exp === 'grin' ? '😁' : '😴'}
-                                  </button>
-                                ))}
-                             </div>
-                          </div>
-                          <div className="space-y-4">
-                             <label className="text-[10px] font-black uppercase text-zinc-600">Corte de Cabelo</label>
-                             <div className="grid grid-cols-3 gap-3">
-                                {['none', 'short', 'spiky', 'long', 'hood'].map(style => (
-                                  <button key={style} onClick={()=>setUser({...user, appearance: {...user.appearance, hairStyle: style as any}})} className={`px-4 py-4 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${user.appearance.hairStyle === style ? 'border-indigo-600 bg-indigo-600/10 text-white' : 'border-zinc-800 bg-zinc-950 text-zinc-600 hover:border-zinc-700'}`}>{style}</button>
-                                ))}
-                             </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-8">
-                             <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase text-zinc-600">Pele</label>
-                                <input type="color" value={user.appearance.skinColor} onChange={e=>setUser({...user, appearance: {...user.appearance, skinColor: e.target.value}})} className="w-full h-14 bg-zinc-950 border border-zinc-800 rounded-2xl cursor-pointer p-1" />
-                             </div>
-                             <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase text-zinc-600">Cabelo</label>
-                                <input type="color" value={user.appearance.hairColor} onChange={e=>setUser({...user, appearance: {...user.appearance, hairColor: e.target.value}})} className="w-full h-14 bg-zinc-950 border border-zinc-800 rounded-2xl cursor-pointer p-1" />
-                             </div>
-                          </div>
-                          <button onClick={()=>{updateAndSave(user); setIsEditingProfile(false);}} className="w-full py-7 bg-white text-black rounded-[2.5rem] font-black uppercase tracking-[0.2em] text-xs hover:bg-zinc-200 transition-all shadow-xl border-b-4 border-zinc-300">Gravar Alterações</button>
-                       </div>
-                    </div>
-                 </div>
-               )}
+                            </div>
+                            <div className="space-y-4">
+                               <label className="text-[10px] font-black uppercase text-zinc-600">Estilo da Coroa (Cabelo)</label>
+                               <div className="grid grid-cols-3 gap-3">
+                                  {['none', 'short', 'spiky', 'long', 'hood'].map(style => (
+                                    <button key={style} onClick={()=>setUser({...user, appearance: {...user.appearance, hairStyle: style as any}})} className={`px-4 py-5 rounded-3xl text-[10px] font-black uppercase border-2 transition-all ${user.appearance.hairStyle === style ? 'border-indigo-600 bg-indigo-600/10 text-white shadow-xl' : 'border-zinc-800 bg-zinc-950 text-zinc-600 hover:border-zinc-700'}`}>{style}</button>
+                                  ))}
+                               </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-8">
+                               <div className="space-y-3">
+                                  <label className="text-[10px] font-black uppercase text-zinc-600">Tom da Fisionomia</label>
+                                  <input type="color" value={user.appearance.skinColor} onChange={e=>setUser({...user, appearance: {...user.appearance, skinColor: e.target.value}})} className="w-full h-16 bg-zinc-950 border border-zinc-800 rounded-3xl cursor-pointer p-1" />
+                               </div>
+                               <div className="space-y-3">
+                                  <label className="text-[10px] font-black uppercase text-zinc-600">Pigmento Capilar</label>
+                                  <input type="color" value={user.appearance.hairColor} onChange={e=>setUser({...user, appearance: {...user.appearance, hairColor: e.target.value}})} className="w-full h-16 bg-zinc-950 border border-zinc-800 rounded-3xl cursor-pointer p-1" />
+                               </div>
+                            </div>
+                            <button onClick={()=>{updateAndSave(user); setIsEditingProfile(false);}} className="w-full py-8 bg-red-600 text-white rounded-[3rem] font-black uppercase tracking-[0.2em] text-xs hover:bg-red-500 transition-all shadow-2xl border-b-8 border-red-800 active:border-b-0 active:translate-y-2">Consolidar Alma</button>
+                         </div>
+                      </div>
+                    )}
+                  </div>
+               </div>
             </div>
           )}
 
           {activeTab === 'quests' && (
-            <div className="max-w-4xl mx-auto space-y-12 pb-32 animate-in fade-in zoom-in-95 duration-700">
+            <div className="max-w-4xl mx-auto space-y-12 pb-32 animate-in fade-in zoom-in-95 duration-700 relative z-[20]">
               {isExhausted ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-12">
                   <div className="text-9xl animate-bounce drop-shadow-[0_0_60px_rgba(239,68,68,0.7)]">💀</div>
@@ -459,7 +477,7 @@ const App: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <button onClick={()=>setShowQuestCreator(true)} className="w-full bg-zinc-900/30 border-4 border-dashed border-zinc-800 p-12 rounded-[4rem] flex items-center justify-center gap-8 hover:border-red-600/50 transition-all group"><span className="text-4xl group-hover:scale-125 transition-all">📜</span><span className="text-sm font-black uppercase tracking-[0.5em] text-zinc-500 group-hover:text-zinc-200">Novo Contrato de Missão</span></button>
+                  <button onClick={()=>setShowQuestCreator(true)} className="w-full bg-zinc-900/30 border-4 border-dashed border-zinc-800 p-12 rounded-[4rem] flex items-center justify-center gap-8 hover:border-red-600/50 transition-all group backdrop-blur-sm"><span className="text-4xl group-hover:scale-125 transition-all">📜</span><span className="text-sm font-black uppercase tracking-[0.5em] text-zinc-500 group-hover:text-zinc-200">Novo Contrato de Missão</span></button>
                   {showQuestCreator && <QuestStepper onComplete={data => { const task: Task = { ...data, durationMinutes: data.duration, id: Math.random().toString(36).substr(2,9), startTime: null, accumulatedTimeMs: 0, isPaused: false, done: false, createdAt: Date.now() }; updateAndSave({...user, tasks: [task, ...user.tasks]}); setShowQuestCreator(false); }} onCancel={()=>setShowQuestCreator(false)} />}
                   <div className="space-y-8">
                      {user.tasks.filter(t => !t.done).map(task => {
@@ -470,10 +488,10 @@ const App: React.FC = () => {
                        const isReady = progress >= 100;
                        const remainingMs = Math.max(0, targetMs - (task.accumulatedTimeMs || 0));
                        return (
-                         <div key={task.id} className={`p-12 rounded-[4.5rem] border-2 transition-all duration-700 flex flex-col gap-10 ${isReady ? 'border-amber-500 bg-amber-500/10' : isRunning ? 'border-indigo-500/60 bg-indigo-500/10' : `${config.color} ${config.bg}`}`}>
+                         <div key={task.id} className={`p-12 rounded-[4.5rem] border-2 transition-all duration-700 flex flex-col gap-10 ${isReady ? 'border-amber-500 bg-amber-500/10' : isRunning ? 'border-indigo-500/60 bg-indigo-500/10 shadow-2xl' : `${config.color} ${config.bg} backdrop-blur-sm shadow-xl`}`}>
                             <div className="flex flex-col md:flex-row items-center gap-10">
                               <div className="flex-1 text-center md:text-left space-y-4">
-                                 <h3 className="text-5xl font-rpg font-black tracking-tighter">{task.title}</h3>
+                                 <h3 className="text-5xl font-rpg font-black tracking-tighter text-white">{task.title}</h3>
                                  <div className="flex flex-wrap justify-center md:justify-start gap-6 font-black uppercase tracking-widest text-xs"><span className="text-amber-500">💰 {Math.floor(config.gold * DIFFICULTIES[task.difficulty].multiplier)}G</span><span className="text-indigo-400">✨ {Math.floor(config.xp * DIFFICULTIES[task.difficulty].multiplier)}XP</span>{!isRunning && <span className="text-red-500">❤️ -5 HP</span>}</div>
                               </div>
                               <div className="flex flex-col items-center md:items-end gap-6">
@@ -481,7 +499,7 @@ const App: React.FC = () => {
                                  <div className="flex gap-6">{isRunning && !isReady && <button onClick={()=>setTaskToAbandon(task.id)} className="px-8 py-5 border-2 border-red-500/20 text-red-500/50 rounded-2xl font-black uppercase tracking-widest hover:bg-red-500/10 hover:text-red-500 transition-all text-[10px]">Abandonar</button>}{!isRunning ? <button onClick={()=>handleStartTask(task.id)} className="px-12 py-6 bg-white text-black rounded-3xl font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Iniciar</button> : isReady ? <button onClick={()=>handleCompleteTask(task.id)} className="px-14 py-7 bg-amber-500 text-black rounded-[2.5rem] font-black uppercase tracking-widest animate-pulse hover:scale-110 transition-all shadow-2xl">Finalizar</button> : <div className="px-10 py-5 bg-indigo-500/20 text-indigo-400 border-2 border-indigo-500/30 rounded-3xl font-black uppercase text-[10px] tracking-widest">Jornada Ativa...</div>}</div>
                               </div>
                             </div>
-                            {isRunning && <div className="w-full h-4 bg-zinc-950 rounded-full border border-zinc-800 overflow-hidden"><div className="h-full bg-indigo-500 transition-all duration-1000" style={{width:`${progress}%`}} /></div>}
+                            {isRunning && <div className="w-full h-4 bg-zinc-950 rounded-full border border-zinc-800 overflow-hidden"><div className="h-full bg-indigo-500 transition-all duration-1000 shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{width:`${progress}%`}} /></div>}
                          </div>
                        );
                      })}
@@ -516,8 +534,8 @@ const EquipSlot: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: In
   const rarity = item ? (RARITIES[item.rarity] || RARITIES.comum) : null;
   return (
     <div className="flex flex-col items-center gap-2">
-      <div onClick={() => item && onSelect(item)} className={`w-14 h-14 md:w-20 md:h-20 rounded-[2rem] border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer shadow-xl ${item ? (item.rarity === 'lendario' ? 'animate-equip-legendary border-amber-500 scale-110' : (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110')) : 'border-zinc-800 bg-zinc-950/40 opacity-30 border-dashed hover:opacity-100 hover:scale-105'}`}>
-        <span className="text-2xl md:text-4xl drop-shadow-2xl">{item ? item.icon : icons[slot]}</span>
+      <div onClick={() => item && onSelect(item)} className={`w-14 h-14 md:w-16 md:h-16 rounded-[1.5rem] border-2 flex flex-col items-center justify-center transition-all relative cursor-pointer shadow-xl ${item ? (item.rarity === 'lendario' ? 'animate-equip-legendary border-amber-500 scale-110' : (rarity?.color.split(' ')[1] + ' ' + rarity?.bg + ' animate-equip scale-110')) : 'border-zinc-800 bg-zinc-950/40 opacity-30 border-dashed hover:opacity-100 hover:scale-105 hover:border-indigo-500/50'}`}>
+        <span className="text-xl md:text-3xl drop-shadow-2xl">{item ? item.icon : icons[slot]}</span>
       </div>
       <span className="text-[7px] font-black uppercase text-zinc-600 tracking-widest text-center mt-1">{labels[slot]}</span>
     </div>
