@@ -1,121 +1,125 @@
 
-import { User, Guild, FriendRequest } from '../types';
-import { supabase } from './supabase';
+import { User, Guild } from '../types';
+
+const USERS_KEY = 'questmaster_users';
+const SESSION_KEY = 'questmaster_session';
+const GUILDS_KEY = 'questmaster_guilds';
+
+// Simulação de delay de rede para teste de UX
+const networkDelay = () => new Promise(resolve => setTimeout(resolve, 300));
 
 export const db = {
-  // Retorna o perfil vinculado ao usuário autenticado atual
-  getCurrentProfile: async (): Promise<User | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return null;
+  // Helpers internos para garantir integridade
+  _getRawUsers: () => JSON.parse(localStorage.getItem(USERS_KEY) || '{}'),
+  _getRawGuilds: () => JSON.parse(localStorage.getItem(GUILDS_KEY) || '[]'),
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('data')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error || !data) return null;
-    return data.data as User;
+  getUser: (email: string): User | null => {
+    const users = db._getRawUsers();
+    const user = users[email] || null;
+    if (user) {
+      // Garante que campos críticos sejam arrays
+      user.friends = user.friends || [];
+      user.friendRequests = user.friendRequests || [];
+      user.inventory = user.inventory || [];
+      user.tasks = user.tasks || [];
+    }
+    return user;
   },
 
-  getUser: async (email: string): Promise<User | null> => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('data')
-      .eq('email', email)
-      .single();
-
-    if (error || !data) return null;
-    return data.data as User;
+  getAllUsers: (): User[] => {
+    const users = db._getRawUsers();
+    return Object.values(users).map((u: any) => ({
+      ...u,
+      friends: u.friends || [],
+      friendRequests: u.friendRequests || []
+    }));
   },
 
-  getAllUsers: async (): Promise<User[]> => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('data');
-
-    if (error || !data) return [];
-    return data.map(d => d.data as User);
+  saveUser: (user: User) => {
+    const users = db._getRawUsers();
+    users[user.email] = user;
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    window.dispatchEvent(new Event('storage_sync'));
   },
 
-  saveUser: async (user: User) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({ 
-        id: session.user.id, // Vincula ao ID real do Auth
-        email: user.email, 
-        nickname: user.nickname,
-        xp: user.xp,
-        level: user.level,
-        data: user 
-      }, { onConflict: 'id' });
-
-    if (error) console.error("Erro ao salvar no Supabase:", error);
+  setSession: (email: string) => {
+    localStorage.setItem(SESSION_KEY, email);
   },
 
-  logout: async () => {
-    await supabase.auth.signOut();
+  getSession: (): string | null => {
+    return localStorage.getItem(SESSION_KEY);
   },
 
-  // Sistema de Amizade Online
-  sendFriendRequest: async (fromEmail: string, toEmail: string) => {
-    const toUser = await db.getUser(toEmail);
-    const fromUser = await db.getUser(fromEmail);
+  logout: () => {
+    localStorage.removeItem(SESSION_KEY);
+  },
+
+  // Exportar/Importar Alma
+  exportHero: (email: string): string | null => {
+    const user = db.getUser(email);
+    if (!user) return null;
+    return btoa(unescape(encodeURIComponent(JSON.stringify(user))));
+  },
+
+  importHero: (code: string): boolean => {
+    try {
+      const userData: User = JSON.parse(decodeURIComponent(escape(atob(code))));
+      if (!userData.email || !userData.nickname) return false;
+      db.saveUser(userData);
+      return true;
+    } catch (e) {
+      console.error("Erro ao importar herói:", e);
+      return false;
+    }
+  },
+
+  // Sistema de Amizade (Simulação de Real-time)
+  sendFriendRequest: (fromEmail: string, toEmail: string) => {
+    const toUser = db.getUser(toEmail);
+    const fromUser = db.getUser(fromEmail);
     if (!toUser || !fromUser || fromEmail === toEmail) return;
 
-    if (toUser.friendRequests?.some(r => r.fromEmail === fromEmail)) return;
-    if (toUser.friends?.includes(fromEmail)) return;
+    if (toUser.friendRequests.some(r => r.fromEmail === fromEmail)) return;
+    if (toUser.friends.includes(fromEmail)) return;
 
-    const updatedToUser = { ...toUser };
-    updatedToUser.friendRequests = updatedToUser.friendRequests || [];
-    updatedToUser.friendRequests.push({
+    toUser.friendRequests.push({
       fromEmail: fromUser.email,
       fromNickname: fromUser.nickname,
       status: 'pending'
     });
-    
-    // Nota: Como não temos o ID do destinatário aqui facilmente, 
-    // em um sistema real faríamos um update parcial via RPC ou tabela separada.
-    // Para o protótipo, salvamos via email se o RLS permitir.
-    const { error } = await supabase
-      .from('profiles')
-      .update({ data: updatedToUser })
-      .eq('email', toEmail);
+    db.saveUser(toUser);
   },
 
-  acceptFriendRequest: async (userEmail: string, fromEmail: string) => {
-    const user = await db.getCurrentProfile();
-    const fromUser = await db.getUser(fromEmail);
+  acceptFriendRequest: (userEmail: string, fromEmail: string) => {
+    const user = db.getUser(userEmail);
+    const fromUser = db.getUser(fromEmail);
     if (!user || !fromUser) return;
 
-    user.friendRequests = (user.friendRequests || []).filter(r => r.fromEmail !== fromEmail);
-    user.friends = user.friends || [];
+    user.friendRequests = user.friendRequests.filter(r => r.fromEmail !== fromEmail);
+    
     if (!user.friends.includes(fromEmail)) user.friends.push(fromEmail);
-
-    fromUser.friends = fromUser.friends || [];
     if (!fromUser.friends.includes(userEmail)) fromUser.friends.push(userEmail);
     
-    await db.saveUser(user);
-    // Para o amigo, atualizamos via email
-    await supabase.from('profiles').update({ data: fromUser }).eq('email', fromEmail);
+    db.saveUser(user);
+    db.saveUser(fromUser);
   },
 
-  getAllGuilds: async (): Promise<Guild[]> => {
-    const { data, error } = await supabase
-      .from('guilds')
-      .select('*');
-    if (error || !data) return [];
-    return data as Guild[];
+  // Guildas
+  getAllGuilds: (): Guild[] => {
+    return db._getRawGuilds();
   },
 
-  createGuild: async (name: string, masterEmail: string, icon: string, description: string) => {
-    const user = await db.getCurrentProfile();
+  saveGuilds: (guilds: Guild[]) => {
+    localStorage.setItem(GUILDS_KEY, JSON.stringify(guilds));
+    window.dispatchEvent(new Event('storage_sync'));
+  },
+
+  createGuild: (name: string, masterEmail: string, icon: string, description: string) => {
+    const guilds = db.getAllGuilds();
+    const user = db.getUser(masterEmail);
     if (!user || user.gold < 500) return null;
 
-    const newGuild = {
+    const newGuild: Guild = {
       id: Math.random().toString(36).substr(2, 9),
       name,
       icon,
@@ -126,100 +130,61 @@ export const db = {
       requiredLevel: 1
     };
 
-    const { error } = await supabase.from('guilds').insert(newGuild);
-    if (error) return null;
-
+    guilds.push(newGuild);
+    db.saveGuilds(guilds);
+    
     user.gold -= 500;
     user.guildId = newGuild.id;
-    await db.saveUser(user);
+    db.saveUser(user);
     
-    return newGuild as Guild;
+    return newGuild;
   },
 
-  joinGuild: async (guildId: string, userEmail: string) => {
-    const user = await db.getCurrentProfile();
-    if (!user || user.guildId) return;
+  joinGuild: (guildId: string, userEmail: string) => {
+    const guilds = db.getAllGuilds();
+    const guildIndex = guilds.findIndex(g => g.id === guildId);
+    const user = db.getUser(userEmail);
+    
+    if (guildIndex === -1 || !user || user.guildId) return;
 
-    const { data: guild, error: gError } = await supabase
-      .from('guilds')
-      .select('*')
-      .eq('id', guildId)
-      .single();
-
-    if (gError || !guild) return;
-
-    const updatedMembers = [...guild.memberEmails, userEmail];
-    const updatedXp = guild.totalXp + user.xp;
-
-    await supabase.from('guilds').update({ 
-      memberEmails: updatedMembers,
-      totalXp: updatedXp 
-    }).eq('id', guildId);
-
+    guilds[guildIndex].memberEmails.push(userEmail);
+    guilds[guildIndex].totalXp += user.xp;
     user.guildId = guildId;
-    await db.saveUser(user);
+    
+    db.saveGuilds(guilds);
+    db.saveUser(user);
   },
 
-  leaveGuild: async (userEmail: string) => {
-    const user = await db.getCurrentProfile();
+  leaveGuild: (userEmail: string) => {
+    const user = db.getUser(userEmail);
     if (!user || !user.guildId) return;
 
-    const { data: guild, error } = await supabase
-      .from('guilds')
-      .select('*')
-      .eq('id', user.guildId)
-      .single();
-
-    if (error || !guild) return;
-
-    let updatedMembers = guild.memberEmails.filter((e: string) => e !== userEmail);
-    let updatedMaster = guild.masterEmail;
-
-    if (updatedMaster === userEmail) {
-      updatedMaster = updatedMembers.length > 0 ? updatedMembers[0] : null;
-    }
-
-    if (updatedMembers.length === 0) {
-      await supabase.from('guilds').delete().eq('id', user.guildId);
-    } else {
-      await supabase.from('guilds').update({ 
-        memberEmails: updatedMembers,
-        masterEmail: updatedMaster,
-        totalXp: Math.max(0, guild.totalXp - user.xp)
-      }).eq('id', user.guildId);
+    const guilds = db.getAllGuilds();
+    const guildIndex = guilds.findIndex(g => g.id === user.guildId);
+    if (guildIndex !== -1) {
+      guilds[guildIndex].memberEmails = guilds[guildIndex].memberEmails.filter(e => e !== userEmail);
+      guilds[guildIndex].totalXp = Math.max(0, guilds[guildIndex].totalXp - user.xp);
+      
+      if (guilds[guildIndex].masterEmail === userEmail) {
+        if (guilds[guildIndex].memberEmails.length > 0) {
+          guilds[guildIndex].masterEmail = guilds[guildIndex].memberEmails[0];
+        } else {
+          guilds.splice(guildIndex, 1);
+        }
+      }
     }
 
     user.guildId = null;
-    await db.saveUser(user);
+    db.saveGuilds(guilds);
+    db.saveUser(user);
   },
 
-  addGuildXp: async (guildId: string, amount: number) => {
-    const { data: guild } = await supabase.from('guilds').select('totalXp').eq('id', guildId).single();
-    if (guild) {
-      await supabase.from('guilds').update({ totalXp: guild.totalXp + amount }).eq('id', guildId);
+  addGuildXp: (guildId: string, amount: number) => {
+    const guilds = db.getAllGuilds();
+    const guildIndex = guilds.findIndex(g => g.id === guildId);
+    if (guildIndex !== -1) {
+      guilds[guildIndex].totalXp += amount;
+      db.saveGuilds(guilds);
     }
-  },
-
-  exportHero: (user: User): string => {
-    try {
-      return btoa(encodeURIComponent(JSON.stringify(user)));
-    } catch (e) {
-      console.error("Export failed:", e);
-      return "";
-    }
-  },
-
-  importHero: async (code: string): Promise<boolean> => {
-    try {
-      const decoded = decodeURIComponent(atob(code));
-      const user = JSON.parse(decoded) as User;
-      if (user && user.email && user.nickname) {
-        await db.saveUser(user);
-        return true;
-      }
-    } catch (e) {
-      console.error("Import failed:", e);
-    }
-    return false;
   }
 };
