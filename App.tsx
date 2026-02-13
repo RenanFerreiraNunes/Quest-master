@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { User, Task, Rarity, InventoryItem, Difficulty, CharacterClass, Appearance, EquipmentSlot, Skill } from './types';
 import { db } from './services/db';
+import { supabase } from './services/supabase';
 import { geminiService } from './services/gemini';
 import { RARITIES, DIFFICULTIES, CLASSES, THEMES, INITIAL_SKILLS, CLASS_STATS, SHOP_ITEMS, CAMPAIGN_CHAPTERS, BASE_INVENTORY_CAPACITY, CLASS_ABILITIES } from './constants';
 import StatsBar from './components/StatsBar';
@@ -19,7 +20,11 @@ import SettingsTab from './components/SettingsTab';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<any>(null);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'quests' | 'campaign' | 'shop' | 'inventory' | 'profile' | 'skills' | 'social' | 'settings'>('quests');
   const [questSubTab, setQuestSubTab] = useState<'active' | 'completed' | 'defeats'>('active');
@@ -43,6 +48,65 @@ const App: React.FC = () => {
   const [scrollPos, setScrollPos] = useState(0);
 
   const currentTheme = THEMES[user?.activeTheme as keyof typeof THEMES] || THEMES['theme-default'];
+
+  // Efeito para monitorar autenticação
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) checkProfile(session.user.id);
+      else setIsLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) checkProfile(session.user.id);
+      else { setUser(null); setIsLoading(false); }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkProfile = async (uid: string) => {
+    const profile = await db.getCurrentProfile();
+    if (profile) {
+      setUser(profile);
+      fetchAiGreeting(profile);
+      const storedExhaustion = localStorage.getItem(`exhaustion_${profile.email}`);
+      if (storedExhaustion) setExhaustionEndTime(parseInt(storedExhaustion));
+      setIsCreatingCharacter(false);
+    } else {
+      setIsCreatingCharacter(true);
+    }
+    setIsLoading(false);
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return alert("Preencha todos os campos!");
+    setAuthLoading(true);
+    
+    try {
+      if (authMode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        alert("Verifique seu e-mail para confirmar o cadastro!");
+      }
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+  };
 
   const filteredTasks = useMemo(() => {
     if (!user) return [];
@@ -83,23 +147,6 @@ const App: React.FC = () => {
     } 
     setUser(updated); 
     await db.saveUser(updated);
-  }, []);
-
-  useEffect(() => {
-    const init = async () => {
-      const sessionEmail = db.getSession();
-      if (sessionEmail) {
-        const userData = await db.getUser(sessionEmail);
-        if (userData) {
-          setUser(userData);
-          fetchAiGreeting(userData);
-          const storedExhaustion = localStorage.getItem(`exhaustion_${userData.email}`);
-          if (storedExhaustion) setExhaustionEndTime(parseInt(storedExhaustion));
-        }
-      }
-      setIsLoading(false);
-    };
-    init();
   }, []);
 
   useEffect(() => {
@@ -166,7 +213,6 @@ const App: React.FC = () => {
     const diffCfg = DIFFICULTIES[difficulty] || DIFFICULTIES.facil;
     const classStats = CLASS_STATS[user.charClass];
     
-    // Passivas de classe aplicadas no ganho base
     let xpGain = rarityCfg.xp * diffCfg.multiplier * classStats.xpMod;
     let goldGain = rarityCfg.gold * diffCfg.multiplier * classStats.goldMod;
     
@@ -198,7 +244,6 @@ const App: React.FC = () => {
 
     switch (user.charClass) {
       case 'Guerreiro':
-        // Berserk: Avança 15% do progresso de todas as missões ativas
         updatedUser.tasks = (user.tasks || []).map(t => {
           if (!t.done && t.startTime) {
             const targetMs = (t.durationMinutes || 5) * 60 * 1000;
@@ -209,15 +254,12 @@ const App: React.FC = () => {
         });
         break;
       case 'Mago':
-        // Intelecto Arcano: Ganhar 100 XP
         updatedUser.xp += 100;
         break;
       case 'Ladino':
-        // Mestre Ladino: Saquear 50 de ouro
         updatedUser.gold += 50;
         break;
       case 'Paladino':
-        // Graça Divina: Curar 30 de vida
         updatedUser.hp = Math.min(user.maxHp, user.hp + 30);
         break;
     }
@@ -314,15 +356,37 @@ const App: React.FC = () => {
     </div>
   );
 
-  if (!user && !isCreatingCharacter) return (
+  // Tela de Autenticação Real
+  if (!session) return (
     <div className="min-h-screen relative flex items-center justify-center p-6 bg-zinc-950">
       <ChromaGrid color="rgba(220, 38, 38, 0.05)" />
-      <div className="w-full max-w-md bg-zinc-900/40 backdrop-blur-3xl border border-zinc-800 p-10 rounded-[3.5rem] shadow-3xl text-center relative z-10 animate-in fade-in zoom-in-95 duration-700">
-        <h1 className="text-5xl font-rpg mb-12 text-white font-black uppercase tracking-tighter">QUEST<span className="text-red-600">MASTER</span></h1>
-        <div className="space-y-6">
+      <div className="w-full max-w-md bg-zinc-900/40 backdrop-blur-3xl border border-zinc-800 p-10 rounded-[3.5rem] shadow-3xl relative z-10 animate-in fade-in zoom-in-95 duration-700">
+        <h1 className="text-5xl font-rpg mb-8 text-white font-black uppercase tracking-tighter text-center">QUEST<span className="text-red-600">MASTER</span></h1>
+        
+        <form onSubmit={handleEmailAuth} className="space-y-4">
+          <div className="flex bg-zinc-950/50 p-1.5 rounded-2xl border border-zinc-800 mb-4">
+            <button type="button" onClick={() => setAuthMode('login')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${authMode === 'login' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-600'}`}>Entrar</button>
+            <button type="button" onClick={() => setAuthMode('register')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${authMode === 'register' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-600'}`}>Cadastrar</button>
+          </div>
+
           <input type="email" placeholder="Email do Herói" className="w-full bg-zinc-800/50 border border-zinc-700 rounded-2xl p-5 text-white text-center outline-none focus:ring-4 ring-red-600/30 font-bold" value={email} onChange={e => setEmail(e.target.value)} />
-          <button onClick={async () => { if (!email) return; let existing = await db.getUser(email); if (!existing) setIsCreatingCharacter(true); else { db.setSession(email); setUser(existing); fetchAiGreeting(existing); } }} className="w-full bg-red-600 py-6 rounded-2xl font-black text-white uppercase tracking-widest hover:bg-red-500 active:scale-95 transition-all border-b-4 border-red-800">Entrar no Reino</button>
+          <input type="password" placeholder="Senha Mística" className="w-full bg-zinc-800/50 border border-zinc-700 rounded-2xl p-5 text-white text-center outline-none focus:ring-4 ring-red-600/30 font-bold" value={password} onChange={e => setPassword(e.target.value)} />
+          
+          <button disabled={authLoading} type="submit" className="w-full bg-red-600 py-6 rounded-2xl font-black text-white uppercase tracking-widest hover:bg-red-500 active:scale-95 transition-all border-b-4 border-red-800 shadow-xl">
+            {authLoading ? 'Processando...' : authMode === 'login' ? 'Entrar no Reino' : 'Criar Destino'}
+          </button>
+        </form>
+
+        <div className="mt-8 flex items-center gap-4">
+          <div className="h-px flex-1 bg-zinc-800"></div>
+          <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Ou use magia externa</span>
+          <div className="h-px flex-1 bg-zinc-800"></div>
         </div>
+
+        <button onClick={handleGoogleLogin} className="w-full mt-6 flex items-center justify-center gap-4 bg-white py-5 rounded-2xl font-black text-black uppercase text-[10px] tracking-widest hover:bg-zinc-200 transition-all shadow-xl active:scale-95">
+          <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Entrar com Google
+        </button>
       </div>
     </div>
   );
@@ -331,7 +395,7 @@ const App: React.FC = () => {
     const stats = CLASS_STATS[data.charClass] || CLASS_STATS.Guerreiro;
     const newUser: User = { 
       ...data, 
-      email, 
+      email: session.user.email, 
       xp: 0, 
       level: 1, 
       gold: 100, 
@@ -352,7 +416,6 @@ const App: React.FC = () => {
       lastAbilityUse: {}
     };
     await db.saveUser(newUser); 
-    db.setSession(email); 
     setUser(newUser); 
     setIsCreatingCharacter(false);
   }} />;

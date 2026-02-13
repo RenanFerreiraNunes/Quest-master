@@ -2,9 +2,22 @@
 import { User, Guild, FriendRequest } from '../types';
 import { supabase } from './supabase';
 
-const SESSION_KEY = 'questmaster_session';
-
 export const db = {
+  // Retorna o perfil vinculado ao usuário autenticado atual
+  getCurrentProfile: async (): Promise<User | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('data')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error || !data) return null;
+    return data.data as User;
+  },
+
   getUser: async (email: string): Promise<User | null> => {
     const { data, error } = await supabase
       .from('profiles')
@@ -26,29 +39,25 @@ export const db = {
   },
 
   saveUser: async (user: User) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
     const { error } = await supabase
       .from('profiles')
       .upsert({ 
+        id: session.user.id, // Vincula ao ID real do Auth
         email: user.email, 
         nickname: user.nickname,
         xp: user.xp,
         level: user.level,
         data: user 
-      }, { onConflict: 'email' });
+      }, { onConflict: 'id' });
 
     if (error) console.error("Erro ao salvar no Supabase:", error);
   },
 
-  setSession: (email: string) => {
-    localStorage.setItem(SESSION_KEY, email);
-  },
-
-  getSession: (): string | null => {
-    return localStorage.getItem(SESSION_KEY);
-  },
-
-  logout: () => {
-    localStorage.removeItem(SESSION_KEY);
+  logout: async () => {
+    await supabase.auth.signOut();
   },
 
   // Sistema de Amizade Online
@@ -68,11 +77,17 @@ export const db = {
       status: 'pending'
     });
     
-    await db.saveUser(updatedToUser);
+    // Nota: Como não temos o ID do destinatário aqui facilmente, 
+    // em um sistema real faríamos um update parcial via RPC ou tabela separada.
+    // Para o protótipo, salvamos via email se o RLS permitir.
+    const { error } = await supabase
+      .from('profiles')
+      .update({ data: updatedToUser })
+      .eq('email', toEmail);
   },
 
   acceptFriendRequest: async (userEmail: string, fromEmail: string) => {
-    const user = await db.getUser(userEmail);
+    const user = await db.getCurrentProfile();
     const fromUser = await db.getUser(fromEmail);
     if (!user || !fromUser) return;
 
@@ -84,10 +99,10 @@ export const db = {
     if (!fromUser.friends.includes(userEmail)) fromUser.friends.push(userEmail);
     
     await db.saveUser(user);
-    await db.saveUser(fromUser);
+    // Para o amigo, atualizamos via email
+    await supabase.from('profiles').update({ data: fromUser }).eq('email', fromEmail);
   },
 
-  // Guildas Online
   getAllGuilds: async (): Promise<Guild[]> => {
     const { data, error } = await supabase
       .from('guilds')
@@ -97,7 +112,7 @@ export const db = {
   },
 
   createGuild: async (name: string, masterEmail: string, icon: string, description: string) => {
-    const user = await db.getUser(masterEmail);
+    const user = await db.getCurrentProfile();
     if (!user || user.gold < 500) return null;
 
     const newGuild = {
@@ -122,7 +137,7 @@ export const db = {
   },
 
   joinGuild: async (guildId: string, userEmail: string) => {
-    const user = await db.getUser(userEmail);
+    const user = await db.getCurrentProfile();
     if (!user || user.guildId) return;
 
     const { data: guild, error: gError } = await supabase
@@ -146,7 +161,7 @@ export const db = {
   },
 
   leaveGuild: async (userEmail: string) => {
-    const user = await db.getUser(userEmail);
+    const user = await db.getCurrentProfile();
     if (!user || !user.guildId) return;
 
     const { data: guild, error } = await supabase
@@ -185,7 +200,6 @@ export const db = {
     }
   },
 
-  // Fix: Added exportHero to allow copying user character data synchronously
   exportHero: (user: User): string => {
     try {
       return btoa(encodeURIComponent(JSON.stringify(user)));
@@ -195,7 +209,6 @@ export const db = {
     }
   },
 
-  // Fix: Added importHero to allow bringing character data into the realm asynchronously
   importHero: async (code: string): Promise<boolean> => {
     try {
       const decoded = decodeURIComponent(atob(code));
