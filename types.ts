@@ -1,5 +1,5 @@
 
-export type Rarity = 'comum' | 'raro' | 'epico' | 'lendario';
+export type Rarity = 'comum' | 'raro' | 'epico' | 'lendario' | 'extremo';
 export type Difficulty = 'facil' | 'medio' | 'dificil';
 export type CharacterClass = 'Guerreiro' | 'Mago' | 'Ladino' | 'Paladino';
 export type ItemType = 'buff' | 'cosmetic' | 'equipment' | 'theme' | 'skin';
@@ -43,6 +43,7 @@ export interface Task {
   accumulatedTimeMs: number; 
   isPaused: boolean;
   done: boolean;
+  failed?: boolean; // Novo: rastreia se a missão foi abandonada
   doneAt?: number;
   createdAt: number;
   activeSkillApplied?: string;

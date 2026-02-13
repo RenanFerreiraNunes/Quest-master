@@ -15,8 +15,6 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
   const [difficulty, setDifficulty] = useState<Difficulty>('facil');
   const [duration, setDuration] = useState(5);
 
-  // Cálculo dinâmico do tempo mínimo exigido pelo sistema
-  // Fórmula: Base (5m) * Multiplicador Dificuldade * Multiplicador Raridade
   const minRequiredMinutes = Math.ceil(
     BASE_MIN_TIME_MINUTES * 
     DIFFICULTIES[difficulty].multiplier * 
@@ -77,12 +75,12 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {Object.keys(RARITIES).map((r) => (
                 <button 
                   key={r}
                   onClick={() => setRarity(r as Rarity)}
-                  className={`p-4 rounded-2xl border-2 transition-all text-xs font-black uppercase tracking-widest ${rarity === r ? 'border-red-600 bg-red-600/10' : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'}`}
+                  className={`p-4 rounded-2xl border-2 transition-all text-[9px] font-black uppercase tracking-widest ${rarity === r ? 'border-red-600 bg-red-600/10' : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'}`}
                 >
                   {r}
                 </button>
@@ -132,9 +130,9 @@ const QuestStepper: React.FC<QuestStepperProps> = ({ onComplete, onCancel }) => 
 
       <div className="flex gap-4 mt-12">
         {step > 1 && (
-          <button onClick={() => setStep(step - 1)} className="px-8 py-4 rounded-2xl border border-zinc-800 font-black text-[10px] uppercase tracking-widest hover:bg-zinc-800">Voltar</button>
+          <button onClick={() => setStep(step - 1)} className="px-8 py-4 rounded-2xl border border-zinc-800 font-black text-[10px] uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all">Voltar</button>
         )}
-        <button onClick={handleNext} className="flex-1 bg-white text-black py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] hover:bg-zinc-200 transition-all shadow-xl">
+        <button onClick={handleNext} className="flex-1 bg-white text-black py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] hover:bg-zinc-200 transition-all shadow-xl active:scale-95">
           {step === 3 ? 'Sincronizar Destino' : 'Continuar'}
         </button>
       </div>

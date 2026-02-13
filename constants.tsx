@@ -13,6 +13,7 @@ export const RARITIES: Record<Rarity, ExtendedRarityConfig> = {
   raro: { xp: 35, gold: 15, color: "text-blue-400 border-blue-500/50", bg: "bg-blue-900/10", shadow: "shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)]", multiplier: 1.5, hpCost: 10 },
   epico: { xp: 80, gold: 50, color: "text-purple-400 border-purple-500/50", bg: "bg-purple-900/10", shadow: "shadow-[0_0_20px_-3px_rgba(168,85,247,0.4)]", multiplier: 2.5, hpCost: 20 },
   lendario: { xp: 200, gold: 150, color: "text-amber-400 border-amber-500/50", bg: "bg-amber-900/10", shadow: "shadow-[0_0_25px_-3px_rgba(245,158,11,0.5)]", multiplier: 5.0, hpCost: 40 },
+  extremo: { xp: 500, gold: 400, color: "text-red-500 border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.4)]", bg: "bg-red-950/20", shadow: "shadow-[0_0_40px_rgba(220,38,38,0.4)]", multiplier: 10.0, hpCost: 80 },
 };
 
 export const DIFFICULTIES: Record<Difficulty, { label: string, multiplier: number, color: string }> = {
