@@ -37,6 +37,7 @@ export interface Task {
   durationMinutes: number;
   minDurationSeconds: number;
   startTime: number | null;
+  lastTickTime?: number; // Campo para rastrear o último tick do timer
   accumulatedTimeMs: number; 
   isPaused: boolean;
   done: boolean;
@@ -58,7 +59,7 @@ export interface InventoryItem {
   icon: string;
   themeClass?: string; 
   isAnimated?: boolean;
-  rarity: Rarity; // Campo adicionado
+  rarity: Rarity;
   quantity?: number; 
 }
 

@@ -33,6 +33,34 @@ const App: React.FC = () => {
   const mainRef = useRef<HTMLElement>(null);
   const currentTheme = THEMES[user?.activeTheme as keyof typeof THEMES] || THEMES['theme-default'];
 
+  // Efeito de Timer para as Tarefas
+  useEffect(() => {
+    if (!user) return;
+    
+    const timer = setInterval(() => {
+      let needsUpdate = false;
+      const updatedTasks = user.tasks.map(t => {
+        if (t.startTime && !t.isPaused && !t.done) {
+          const now = Date.now();
+          const elapsedSinceLastTick = now - (t.lastTickTime || t.startTime);
+          needsUpdate = true;
+          return { 
+            ...t, 
+            accumulatedTimeMs: t.accumulatedTimeMs + Math.max(0, elapsedSinceLastTick),
+            lastTickTime: now 
+          };
+        }
+        return t;
+      });
+
+      if (needsUpdate) {
+        setUser(prev => prev ? { ...prev, tasks: updatedTasks } : null);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [user?.tasks]);
+
   useEffect(() => {
     const sessionEmail = db.getSession();
     if (sessionEmail) {
@@ -58,6 +86,15 @@ const App: React.FC = () => {
   };
 
   const updateAndSave = useCallback((updated: User) => {
+    // Lógica de Level Up
+    const xpNeeded = updated.level * 200;
+    if (updated.xp >= xpNeeded) {
+      updated.level += 1;
+      updated.xp -= xpNeeded;
+      updated.maxHp += 10;
+      updated.hp = updated.maxHp;
+    }
+
     if (updated.hp <= 0 && !updated.isBroken) {
       const penalty = Math.floor(updated.gold * 0.1);
       updated.hp = Math.floor(updated.maxHp * 0.2); 
@@ -140,20 +177,48 @@ const App: React.FC = () => {
 
   const handleStartTask = (taskId: string) => {
     if (!user || user.isBroken) return;
+    const now = Date.now();
     updateAndSave({
       ...user,
       hp: Math.max(1, user.hp - 5), 
-      tasks: user.tasks.map(t => t.id === taskId ? { ...t, startTime: Date.now(), isPaused: false } : t)
+      tasks: user.tasks.map(t => t.id === taskId ? { ...t, startTime: now, lastTickTime: now, isPaused: false } : t)
+    });
+  };
+
+  const handleCompleteTask = (taskId: string) => {
+    if (!user) return;
+    const task = user.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const config = RARITIES[task.rarity] || RARITIES.comum;
+    const diff = DIFFICULTIES[task.difficulty] || DIFFICULTIES.medio;
+    
+    // Bônus de Classe (Exemplo simplificado)
+    const goldBonus = user.charClass === 'Guerreiro' ? 1.2 : 1.0;
+    const xpBonus = user.charClass === 'Mago' ? 1.3 : 1.0;
+
+    const earnedGold = Math.floor(config.gold * diff.multiplier * goldBonus);
+    const earnedXp = Math.floor(config.xp * diff.multiplier * xpBonus);
+
+    updateAndSave({
+      ...user,
+      gold: user.gold + earnedGold,
+      xp: user.xp + earnedXp,
+      tasks: user.tasks.map(t => t.id === taskId ? { ...t, done: true, doneAt: Date.now() } : t)
+    });
+  };
+
+  const handleCancelTask = (taskId: string) => {
+    if (!user) return;
+    updateAndSave({
+      ...user,
+      tasks: user.tasks.map(t => t.id === taskId ? { ...t, startTime: null, accumulatedTimeMs: 0, lastTickTime: undefined } : t)
     });
   };
 
   const filteredInventory = user?.inventory?.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase());
-    const matchesCategory = inventoryCategory === 'all' || 
-                            (inventoryCategory === 'equipment' && item.type === 'equipment') ||
-                            (inventoryCategory === 'buff' && item.type === 'buff') ||
-                            (inventoryCategory === 'cosmetic' && (item.type === 'skin' || item.type === 'theme'));
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   }) || [];
 
   if (isCreatingCharacter) return <CharacterCreator onComplete={(data) => {
@@ -262,17 +327,15 @@ const App: React.FC = () => {
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-20">
-                {/* Character Profile Card - Ajustado para melhor centralização e espaçamento */}
+                {/* Character Profile Card */}
                 <div className="lg:col-span-5 flex flex-col items-center">
                   <div className="relative w-full max-w-[450px] aspect-[0.9/1] bg-zinc-900/40 rounded-[5rem] border-2 border-zinc-800/50 flex flex-col shadow-3xl overflow-hidden p-10 md:p-14 lg:p-16">
                     <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-40 pointer-events-none" />
                     
-                    {/* Head Slot */}
                     <div className="flex justify-center mb-6">
                       <EquipSlot slot="head" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
-                    {/* Middle Row: Accessories and Hero Avatar */}
                     <div className="flex items-center justify-between gap-4 flex-1">
                       <div className="shrink-0 scale-90 md:scale-100">
                         <EquipSlot slot="acc1" user={user} onSelect={setSelectedInventoryItem} />
@@ -280,11 +343,8 @@ const App: React.FC = () => {
                       
                       <div className="relative flex-1 flex justify-center items-center">
                         <div className="w-44 h-44 md:w-60 md:h-60 bg-zinc-950/40 rounded-full border border-white/5 flex items-center justify-center shadow-inner relative group">
-                          {/* Glow background for the avatar */}
                           <div className="absolute inset-0 bg-indigo-500/10 blur-[80px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                          
                           <HeroAvatar appearance={user.appearance} user={user} size={220} className="relative z-10" />
-                          
                           <div className="absolute -bottom-5 bg-zinc-900 border border-zinc-700 px-6 py-2 rounded-full text-[12px] font-black font-rpg shadow-2xl z-30 ring-4 ring-zinc-950/80">
                             LEVEL {user.level}
                           </div>
@@ -296,13 +356,11 @@ const App: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Bottom Row: Body and Special Slots */}
                     <div className="flex justify-center gap-12 md:gap-20 mt-6">
                        <EquipSlot slot="body" user={user} onSelect={setSelectedInventoryItem} />
                        <EquipSlot slot="special" user={user} onSelect={setSelectedInventoryItem} />
                     </div>
 
-                    {/* Quick Stats Panel */}
                     <div className="grid grid-cols-3 gap-3 mt-14">
                       {[
                         {l: 'Poder', v: '+12%', i: '⚔️'},
@@ -318,7 +376,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Inventory Grid - Corrigido espaçamento e clipping */}
+                {/* Inventory Grid */}
                 <div className="lg:col-span-7">
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-6 overflow-y-auto p-2 pb-10 max-h-[850px] scrollbar-hide overflow-x-visible">
                     {filteredInventory.map((item, idx) => {
@@ -338,23 +396,12 @@ const App: React.FC = () => {
                           )}
                           
                           {isEquipped && (
-                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white px-5 py-2 rounded-full text-[9px] font-black shadow-2xl z-30 whitespace-nowrap border-4 border-zinc-950 uppercase tracking-widest scale-90 animate-in fade-in zoom-in-50">Equipado</div>
+                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white px-5 py-2 rounded-full text-[9px] font-black shadow-2xl z-30 whitespace-nowrap border-4 border-zinc-950 uppercase tracking-widest scale-90">Equipado</div>
                           )}
-                          
-                          {/* Aura de Raridade Sutil */}
-                          <div className={`absolute inset-0 rounded-[3rem] opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none ${rarity.bg.replace('/10', '/30')}`} />
-                          
-                          {/* Marcador de Raridade (Dot) */}
                           <div className={`absolute top-4 left-4 w-2.5 h-2.5 rounded-full ${rarity.color.split(' ')[0].replace('text-', 'bg-')} shadow-[0_0_12px_currentColor]`} />
                         </div>
                       );
                     })}
-                    {filteredInventory.length === 0 && (
-                      <div className="col-span-full py-48 border-4 border-dashed border-zinc-900 rounded-[5rem] flex flex-col items-center justify-center gap-4 opacity-40">
-                        <span className="text-4xl">🕳️</span>
-                        <span className="text-sm font-black uppercase tracking-[0.8em] text-zinc-700">Mochila Vazia</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -372,28 +419,75 @@ const App: React.FC = () => {
                   </button>
                 )}
               </div>
+              
               {showQuestCreator && <QuestStepper onCancel={()=>setShowQuestCreator(false)} onComplete={data => {
                 const task: Task = { ...data, id: Math.random().toString(36).substr(2,9), startTime: null, accumulatedTimeMs: 0, isPaused: false, done: false, createdAt: Date.now() };
                 updateAndSave({...user, tasks: [task, ...user.tasks]});
                 setShowQuestCreator(false);
               }} />}
-              <div className="space-y-6">
-                 <h3 className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700">Mural de Contratos</h3>
+
+              <div className="space-y-6 pb-20">
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-700">Mural de Contratos Ativos</h3>
                  {user.tasks.filter(t => !t.done).map(task => {
                    const config = RARITIES[task.rarity] || RARITIES.comum;
+                   const isRunning = task.startTime !== null;
+                   const targetMs = task.durationMinutes * 60 * 1000;
+                   const progress = Math.min(100, (task.accumulatedTimeMs / targetMs) * 100);
+                   const isReady = progress >= 100;
+
+                   const remainingMs = Math.max(0, targetMs - task.accumulatedTimeMs);
+                   const remMinutes = Math.floor(remainingMs / 60000);
+                   const remSeconds = Math.floor((remainingMs % 60000) / 1000);
+
                    return (
-                     <div key={task.id} className={`p-8 rounded-[2.5rem] border-2 ${config.color} ${config.bg} shadow-xl flex flex-col md:flex-row items-center gap-6`}>
-                        <div className="flex-1 space-y-2">
-                           <h3 className="text-3xl font-rpg font-black">{task.title}</h3>
+                     <div key={task.id} className={`relative p-8 rounded-[2.5rem] border-2 transition-all duration-500 flex flex-col md:flex-row items-center gap-8 ${
+                       isReady ? 'border-amber-500 bg-amber-500/5 shadow-[0_0_30px_rgba(245,158,11,0.1)]' :
+                       isRunning ? 'border-indigo-500 bg-indigo-500/5' :
+                       `${config.color} ${config.bg}`
+                     }`}>
+                        {isRunning && (
+                          <div className="absolute top-0 left-0 h-1 bg-indigo-500/20 rounded-full w-full overflow-hidden">
+                             <div className={`h-full transition-all duration-1000 ease-linear ${isReady ? 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-indigo-500'}`} style={{ width: `${progress}%` }} />
+                          </div>
+                        )}
+
+                        <div className="flex-1 space-y-3">
+                           <div className="flex items-center gap-3">
+                              <h3 className="text-3xl font-rpg font-black">{task.title}</h3>
+                              <span className="text-[10px] bg-black/40 px-3 py-1 rounded-full text-zinc-500 font-black uppercase">{task.difficulty}</span>
+                           </div>
                            <div className="flex gap-4">
                               <span className="text-amber-500 font-bold text-xs uppercase tracking-widest">💰 {config.gold} Ouro</span>
                               <span className="text-indigo-400 font-bold text-xs uppercase tracking-widest">✨ {config.xp} XP</span>
+                              {isRunning && !isReady && (
+                                <span className="text-zinc-500 font-mono text-xs font-bold bg-black/30 px-3 py-1 rounded-lg">
+                                   ⏳ {remMinutes}m {remSeconds}s restantes
+                                </span>
+                              )}
                            </div>
                         </div>
-                        <button onClick={()=>handleStartTask(task.id)} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all text-[10px]">Iniciar</button>
+
+                        <div className="flex gap-4">
+                           {isRunning && !isReady && (
+                             <button onClick={()=>handleCancelTask(task.id)} className="px-6 py-4 border border-red-500/30 text-red-500/50 rounded-2xl font-black uppercase tracking-widest hover:bg-red-500/10 hover:text-red-500 transition-all text-[10px]">Abandonar</button>
+                           )}
+                           
+                           {!isRunning ? (
+                             <button onClick={()=>handleStartTask(task.id)} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all text-[10px] shadow-xl">Iniciar Missão</button>
+                           ) : isReady ? (
+                             <button onClick={()=>handleCompleteTask(task.id)} className="px-12 py-4 bg-amber-500 text-black rounded-2xl font-black uppercase tracking-widest hover:scale-110 transition-all text-[10px] shadow-[0_0_25px_rgba(245,158,11,0.4)] animate-pulse">Reivindicar Espólio</button>
+                           ) : (
+                             <div className="px-10 py-4 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-2xl font-black uppercase tracking-widest text-[10px]">Em Progresso...</div>
+                           )}
+                        </div>
                      </div>
                    );
                  })}
+                 {user.tasks.filter(t => !t.done).length === 0 && (
+                   <div className="py-20 text-center border-4 border-dashed border-zinc-900 rounded-[4rem] opacity-30">
+                      <p className="text-zinc-500 font-black uppercase tracking-widest">Nenhum contrato ativo. Crie uma nova missão!</p>
+                   </div>
+                 )}
               </div>
             </div>
           )}
@@ -406,13 +500,6 @@ const App: React.FC = () => {
                      <div className="space-y-3">
                         <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Codinome</label>
                         <input type="text" value={user.nickname} onChange={e => updateAndSave({...user, nickname: e.target.value})} className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 font-bold text-white focus:border-red-600 outline-none" />
-                     </div>
-                     <div className="space-y-4">
-                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Status Atuais</label>
-                        <div className="space-y-4">
-                           <StatsBar label="Força" current={85} max={100} color="bg-orange-600" />
-                           <StatsBar label="Destreza" current={40} max={100} color="bg-indigo-600" />
-                        </div>
                      </div>
                   </div>
                   <div className="flex items-center justify-center">
