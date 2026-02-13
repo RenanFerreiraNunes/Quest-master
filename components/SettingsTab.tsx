@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
+import { db } from '../services/db';
 
 interface SettingsTabProps {
   user: User;
@@ -22,11 +23,30 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
   setAnimationsEnabled
 }) => {
   const [cheatInput, setCheatInput] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   const handleSubmitCheat = (e: React.FormEvent) => {
     e.preventDefault();
     onCheat(cheatInput);
     setCheatInput('');
+  };
+
+  const handleExport = () => {
+    const code = db.exportHero(user.email);
+    if (code) {
+      navigator.clipboard.writeText(code);
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    }
+  };
+
+  const handleImport = () => {
+    const code = prompt("Cole o código da alma do herói que deseja importar para este reino:");
+    if (code) {
+      const success = db.importHero(code);
+      if (success) alert("Herói importado com sucesso! Agora você pode encontrá-lo na aba Social.");
+      else alert("Código inválido. Certifique-se de que copiou o código completo.");
+    }
   };
 
   return (
@@ -38,7 +58,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Preferências de Sistema */}
-        <section className="bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8">
+        <section className="bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
           <h3 className="text-xs font-black text-zinc-600 uppercase tracking-widest flex items-center gap-3">
             <span className="w-2 h-2 bg-indigo-500 rounded-full"></span> Preferências do Reino
           </h3>
@@ -58,20 +78,20 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
 
           <button 
             onClick={onEditProfile}
-            className="w-full py-5 bg-zinc-800 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest hover:bg-zinc-700 transition-all"
+            className="w-full py-5 bg-zinc-800 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest hover:bg-zinc-700 transition-all border-b-4 border-zinc-950"
           >
             Reforgar Identidade Visual
           </button>
         </section>
 
         {/* Consola de Runas (Cheats) */}
-        <section className="bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8">
+        <section className="bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
           <h3 className="text-xs font-black text-zinc-600 uppercase tracking-widest flex items-center gap-3">
             <span className="w-2 h-2 bg-red-600 rounded-full"></span> Consola de Runas
           </h3>
           
           <form onSubmit={handleSubmitCheat} className="space-y-4">
-            <div className="bg-black p-4 rounded-xl border border-zinc-800 font-mono text-[10px]">
+            <div className="bg-black p-4 rounded-xl border border-zinc-800 font-mono text-[10px] shadow-inner">
               <p className="text-emerald-500 mb-2">// Comandos Disponíveis:</p>
               <p className="text-zinc-500">/ouro - Ganha 1000G</p>
               <p className="text-zinc-500">/xp - Ganha 500XP</p>
@@ -90,8 +110,39 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
           </form>
         </section>
 
+        {/* Portabilidade de Dados */}
+        <section className="md:col-span-2 bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
+          <h3 className="text-xs font-black text-zinc-600 uppercase tracking-widest flex items-center gap-3">
+            <span className="w-2 h-2 bg-amber-500 rounded-full"></span> Backup e Transferência
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-zinc-950/60 p-6 rounded-3xl border border-zinc-800 space-y-4">
+               <p className="text-[10px] font-black text-zinc-500 uppercase">Sua Alma Digital</p>
+               <p className="text-xs text-zinc-400 leading-relaxed">Gere um código para levar seu herói para outro navegador ou para que amigos possam te adicionar.</p>
+               <button 
+                onClick={handleExport}
+                className={`w-full py-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${copyFeedback ? 'bg-emerald-600 text-white' : 'bg-white text-black hover:bg-zinc-200'}`}
+               >
+                 {copyFeedback ? 'Copiado para o Pergaminho!' : 'Exportar Código do Herói'}
+               </button>
+            </div>
+
+            <div className="bg-zinc-950/60 p-6 rounded-3xl border border-zinc-800 space-y-4">
+               <p className="text-[10px] font-black text-zinc-500 uppercase">Trazer Herói</p>
+               <p className="text-xs text-zinc-400 leading-relaxed">Cole o código de um amigo para que ele passe a existir neste reino e vocês possam interagir.</p>
+               <button 
+                onClick={handleImport}
+                className="w-full py-4 bg-zinc-800 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-all"
+               >
+                 Importar Herói Externo
+               </button>
+            </div>
+          </div>
+        </section>
+
         {/* Informações de Conta */}
-        <section className="md:col-span-2 bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8">
+        <section className="md:col-span-2 bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
            <div className="flex items-center gap-6">
               <div className="w-16 h-16 bg-zinc-950 rounded-2xl border border-zinc-800 flex items-center justify-center text-2xl opacity-40">
                 🗝️

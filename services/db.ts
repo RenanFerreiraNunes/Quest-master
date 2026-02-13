@@ -5,22 +5,40 @@ const USERS_KEY = 'questmaster_users';
 const SESSION_KEY = 'questmaster_session';
 const GUILDS_KEY = 'questmaster_guilds';
 
+// Simulação de delay de rede para teste de UX
+const networkDelay = () => new Promise(resolve => setTimeout(resolve, 300));
+
 export const db = {
+  // Helpers internos para garantir integridade
+  _getRawUsers: () => JSON.parse(localStorage.getItem(USERS_KEY) || '{}'),
+  _getRawGuilds: () => JSON.parse(localStorage.getItem(GUILDS_KEY) || '[]'),
+
   getUser: (email: string): User | null => {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-    return users[email] || null;
+    const users = db._getRawUsers();
+    const user = users[email] || null;
+    if (user) {
+      // Garante que campos críticos sejam arrays
+      user.friends = user.friends || [];
+      user.friendRequests = user.friendRequests || [];
+      user.inventory = user.inventory || [];
+      user.tasks = user.tasks || [];
+    }
+    return user;
   },
 
   getAllUsers: (): User[] => {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-    return Object.values(users);
+    const users = db._getRawUsers();
+    return Object.values(users).map((u: any) => ({
+      ...u,
+      friends: u.friends || [],
+      friendRequests: u.friendRequests || []
+    }));
   },
 
   saveUser: (user: User) => {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+    const users = db._getRawUsers();
     users[user.email] = user;
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    // Dispara evento para outras abas saberem que houve mudança
     window.dispatchEvent(new Event('storage_sync'));
   },
 
@@ -36,15 +54,33 @@ export const db = {
     localStorage.removeItem(SESSION_KEY);
   },
 
-  // Sociais
-  sendFriendRequest: (fromEmail: string, toEmail: string) => {
-    const fromUser = db.getUser(fromEmail);
-    const toUser = db.getUser(toEmail);
-    if (!fromUser || !toUser || fromEmail === toEmail) return;
+  // Exportar/Importar Alma
+  exportHero: (email: string): string | null => {
+    const user = db.getUser(email);
+    if (!user) return null;
+    return btoa(unescape(encodeURIComponent(JSON.stringify(user))));
+  },
 
-    if (!toUser.friendRequests) toUser.friendRequests = [];
+  importHero: (code: string): boolean => {
+    try {
+      const userData: User = JSON.parse(decodeURIComponent(escape(atob(code))));
+      if (!userData.email || !userData.nickname) return false;
+      db.saveUser(userData);
+      return true;
+    } catch (e) {
+      console.error("Erro ao importar herói:", e);
+      return false;
+    }
+  },
+
+  // Sistema de Amizade (Simulação de Real-time)
+  sendFriendRequest: (fromEmail: string, toEmail: string) => {
+    const toUser = db.getUser(toEmail);
+    const fromUser = db.getUser(fromEmail);
+    if (!toUser || !fromUser || fromEmail === toEmail) return;
+
     if (toUser.friendRequests.some(r => r.fromEmail === fromEmail)) return;
-    if (toUser.friends?.includes(fromEmail)) return;
+    if (toUser.friends.includes(fromEmail)) return;
 
     toUser.friendRequests.push({
       fromEmail: fromUser.email,
@@ -59,9 +95,7 @@ export const db = {
     const fromUser = db.getUser(fromEmail);
     if (!user || !fromUser) return;
 
-    user.friendRequests = (user.friendRequests || []).filter(r => r.fromEmail !== fromEmail);
-    if (!user.friends) user.friends = [];
-    if (!fromUser.friends) fromUser.friends = [];
+    user.friendRequests = user.friendRequests.filter(r => r.fromEmail !== fromEmail);
     
     if (!user.friends.includes(fromEmail)) user.friends.push(fromEmail);
     if (!fromUser.friends.includes(userEmail)) fromUser.friends.push(userEmail);
@@ -72,7 +106,7 @@ export const db = {
 
   // Guildas
   getAllGuilds: (): Guild[] => {
-    return JSON.parse(localStorage.getItem(GUILDS_KEY) || '[]');
+    return db._getRawGuilds();
   },
 
   saveGuilds: (guilds: Guild[]) => {
@@ -114,9 +148,7 @@ export const db = {
     if (guildIndex === -1 || !user || user.guildId) return;
 
     guilds[guildIndex].memberEmails.push(userEmail);
-    // Atualiza o XP total da guilda somando o novo membro
     guilds[guildIndex].totalXp += user.xp;
-    
     user.guildId = guildId;
     
     db.saveGuilds(guilds);
@@ -133,8 +165,6 @@ export const db = {
       guilds[guildIndex].memberEmails = guilds[guildIndex].memberEmails.filter(e => e !== userEmail);
       guilds[guildIndex].totalXp = Math.max(0, guilds[guildIndex].totalXp - user.xp);
       
-      // Se a guilda ficar vazia, ela some? Ou se o mestre sair, passa pra outro?
-      // Simplificação: Se o mestre sai e há outros, o primeiro vira mestre. Se não há, deleta.
       if (guilds[guildIndex].masterEmail === userEmail) {
         if (guilds[guildIndex].memberEmails.length > 0) {
           guilds[guildIndex].masterEmail = guilds[guildIndex].memberEmails[0];
