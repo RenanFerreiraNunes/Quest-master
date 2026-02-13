@@ -5,13 +5,15 @@ export type CharacterClass = 'Guerreiro' | 'Mago' | 'Ladino' | 'Paladino';
 export type ItemType = 'buff' | 'cosmetic' | 'equipment' | 'theme' | 'skin';
 export type SkillType = 'ativa' | 'passiva';
 export type EquipmentSlot = 'head' | 'body' | 'acc1' | 'acc2' | 'special';
+export type GuildRank = 'Mestre' | 'Oficial' | 'Recruta';
 
 export interface Appearance {
   skinColor: string;
-  hairStyle: 'none' | 'short' | 'long' | 'spiky' | 'hood' | 'helmet';
+  hairStyle: 'none' | 'short' | 'long' | 'spiky' | 'mohawk' | 'bob' | 'braids' | 'hood';
   hairColor: string;
+  eyeStyle: 'round' | 'sharp' | 'closed' | 'large' | 'glow';
   eyeColor: string;
-  expression: 'neutral' | 'happy' | 'focused' | 'tired' | 'grin';
+  expression: 'neutral' | 'happy' | 'focused' | 'tired' | 'grin' | 'angry' | 'surprised';
   outfitColor: string;
   outfitId?: string; 
 }
@@ -37,7 +39,7 @@ export interface Task {
   durationMinutes: number;
   minDurationSeconds: number;
   startTime: number | null;
-  lastTickTime?: number; // Campo para rastrear o último tick do timer
+  lastTickTime?: number;
   accumulatedTimeMs: number; 
   isPaused: boolean;
   done: boolean;
@@ -74,12 +76,28 @@ export interface CampaignMission {
   chapter: number;
 }
 
+export interface FriendRequest {
+  fromEmail: string;
+  fromNickname: string;
+  status: 'pending' | 'accepted';
+}
+
+export interface Guild {
+  id: string;
+  name: string;
+  icon: string;
+  masterEmail: string;
+  memberEmails: string[];
+  totalXp: number;
+  description: string;
+  requiredLevel: number;
+}
+
 export interface User {
   email: string;
   nickname: string;
   charClass: CharacterClass;
   avatar: string; 
-  profileImage?: string; 
   appearance: Appearance;
   xp: number;
   level: number;
@@ -95,6 +113,9 @@ export interface User {
   equippedSkills: string[];
   equipment: Record<EquipmentSlot, string | null>;
   campaignProgress: number; 
+  friends: string[]; // Lista de emails
+  friendRequests: FriendRequest[];
+  guildId: string | null;
 }
 
 export interface RarityConfig {

@@ -12,7 +12,7 @@ interface ItemDetailsModalProps {
 }
 
 const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, user, onClose, onAction, actionLabel }) => {
-  const equippedId = item.slot ? user.equipment[item.slot] : null;
+  const equippedId = item.slot && user.equipment ? user.equipment[item.slot] : null;
   const equippedItem = equippedId ? SHOP_ITEMS.find(i => i.id === equippedId) : null;
   const rarity = RARITIES[item.rarity] || RARITIES.comum;
 
