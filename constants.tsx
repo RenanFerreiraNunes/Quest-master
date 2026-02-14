@@ -30,22 +30,22 @@ export const AVATAR_PRESETS: { name: string, appearance: Appearance, class: Char
   { 
     name: 'Cavaleiro Real', 
     class: 'Guerreiro',
-    appearance: { skinColor: '#ffdbac', hairStyle: 'short', hairColor: '#ffd700', eyeStyle: 'round', eyeColor: '#4b8eb5', expression: 'focused', outfitColor: '#3f3f46' }
+    appearance: { skinColor: '#ffdbac', hairStyle: 'short', hairColor: '#ffd700', facialHair: 'beard', facialHairColor: '#4a3728', eyebrowStyle: 'normal', eyeStyle: 'round', eyeColor: '#4b8eb5', expression: 'focused', outfitColor: '#3f3f46' }
   },
   { 
     name: 'Feiticeira Sombria', 
     class: 'Mago',
-    appearance: { skinColor: '#f1c27d', hairStyle: 'long', hairColor: '#2e1065', eyeStyle: 'glow', eyeColor: '#a855f7', expression: 'grin', outfitColor: '#1e1b4b' }
+    appearance: { skinColor: '#f1c27d', hairStyle: 'long', hairColor: '#2e1065', facialHair: 'none', facialHairColor: '#2e1065', eyebrowStyle: 'thin', eyeStyle: 'glow', eyeColor: '#a855f7', expression: 'grin', outfitColor: '#1e1b4b' }
   },
   { 
     name: 'Algoz do Deserto', 
     class: 'Ladino',
-    appearance: { skinColor: '#8d5524', hairStyle: 'spiky', hairColor: '#18181b', eyeStyle: 'sharp', eyeColor: '#ef4444', expression: 'focused', outfitColor: '#27272a' }
+    appearance: { skinColor: '#8d5524', hairStyle: 'spiky', hairColor: '#18181b', facialHair: 'stubble', facialHairColor: '#18181b', eyebrowStyle: 'angry', eyeStyle: 'sharp', eyeColor: '#ef4444', expression: 'focused', outfitColor: '#27272a' }
   },
   { 
     name: 'Paladino da Luz', 
     class: 'Paladino',
-    appearance: { skinColor: '#ffdbac', hairStyle: 'mohawk', hairColor: '#ffffff', eyeStyle: 'large', eyeColor: '#fbbf24', expression: 'happy', outfitColor: '#71717a' }
+    appearance: { skinColor: '#ffdbac', hairStyle: 'mohawk', hairColor: '#ffffff', facialHair: 'goatee', facialHairColor: '#ffffff', eyebrowStyle: 'thick', eyeStyle: 'large', eyeColor: '#fbbf24', expression: 'happy', outfitColor: '#71717a' }
   },
 ];
 
@@ -80,6 +80,8 @@ export const SHOP_ITEMS: InventoryItem[] = [
   
   { id: 'body-0', name: 'Túnica de Couro', rarity: 'comum', price: 80, description: '+5% de Ganhos de Ouro.', lore: 'Leve e resistente aos ventos.', type: 'equipment', slot: 'body', statBoost: 'GOLD', boostValue: 5, icon: '👕' },
   { id: 'body-1', name: 'Armadura de Placas', rarity: 'epico', price: 500, description: '+25% de Vida Máxima (HP).', lore: 'Forjada no vulcão de Ignis.', type: 'equipment', slot: 'body', statBoost: 'HP', boostValue: 25, icon: '🛡️' },
+
+  { id: 'skin-hood', name: 'Capuz de Sombras', rarity: 'epico', price: 350, description: 'Um capuz místico que oculta sua face nas sombras.', lore: 'Favorito entre os ladinos e assassinos do reino.', type: 'equipment', slot: 'head', icon: '🥷' },
 
   { id: 'theme-abyssal', name: 'Tema Abissal', rarity: 'epico', price: 400, description: 'Interface em tons roxos profundos.', type: 'theme', icon: '🌌', themeClass: 'theme-abyssal' },
   { id: 'theme-solar', name: 'Tema Solar', rarity: 'lendario', price: 600, description: 'Interface em tons dourados radiantes.', type: 'theme', icon: '☀️', themeClass: 'theme-solar' },

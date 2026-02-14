@@ -11,11 +11,17 @@ export interface Appearance {
   skinColor: string;
   hairStyle: 'none' | 'short' | 'long' | 'spiky' | 'mohawk' | 'bob' | 'braids' | 'hood';
   hairColor: string;
+  facialHair: 'none' | 'stubble' | 'beard' | 'goatee' | 'mustache';
+  facialHairColor: string;
+  eyebrowStyle: 'none' | 'normal' | 'thick' | 'thin' | 'angry';
   eyeStyle: 'round' | 'sharp' | 'closed' | 'large' | 'glow';
   eyeColor: string;
   expression: 'neutral' | 'happy' | 'focused' | 'tired' | 'grin' | 'angry' | 'surprised';
   outfitColor: string;
   outfitId?: string; 
+  neckOffset?: number;
+  fringeDepth?: number; // 0 a 1, padrão 0.5
+  fringeCurvature?: number; // 0 a 1, padrão 0.5
 }
 
 export interface Skill {
@@ -43,7 +49,7 @@ export interface Task {
   accumulatedTimeMs: number; 
   isPaused: boolean;
   done: boolean;
-  failed?: boolean; // Novo: rastreia se a missão foi abandonada
+  failed?: boolean; 
   doneAt?: number;
   createdAt: number;
   activeSkillApplied?: string;
@@ -114,7 +120,7 @@ export interface User {
   equippedSkills: string[];
   equipment: Record<EquipmentSlot, string | null>;
   campaignProgress: number; 
-  friends: string[]; // Lista de emails
+  friends: string[]; 
   friendRequests: FriendRequest[];
   guildId: string | null;
 }

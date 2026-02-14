@@ -15,17 +15,32 @@ const HeroAvatar: React.FC<HeroAvatarProps> = ({ appearance, user, size = 120, c
     skinColor: '#ffdbac',
     hairStyle: 'short',
     hairColor: '#4a3728',
+    facialHair: 'none',
+    facialHairColor: '#4a3728',
+    eyebrowStyle: 'normal',
     eyeStyle: 'round',
     eyeColor: '#4b8eb5',
     expression: 'neutral',
-    outfitColor: '#3f3f46'
+    outfitColor: '#3f3f46',
+    neckOffset: 0,
+    fringeDepth: 0.5,
+    fringeCurvature: 0.5
   };
 
-  const { skinColor, hairStyle, hairColor, eyeStyle, eyeColor, expression, outfitColor } = safeAppearance;
+  const { 
+    skinColor, hairStyle, hairColor, facialHair, facialHairColor, 
+    eyebrowStyle, eyeStyle, eyeColor, expression, outfitColor, 
+    neckOffset = 0, fringeDepth = 0.5, fringeCurvature = 0.5 
+  } = safeAppearance;
+  
   const isBroken = user?.isBroken;
 
   const headItem = user?.equipment?.head ? SHOP_ITEMS.find(i => i.id === user.equipment?.head) : null;
   const bodyItem = user?.equipment?.body ? SHOP_ITEMS.find(i => i.id === user.equipment?.body) : null;
+
+  // Lógica para forçar o hood se o item equipado for o Capuz de Sombras
+  const isHoodEquipped = headItem?.id === 'skin-hood';
+  const effectiveHairStyle = isHoodEquipped ? 'hood' : hairStyle;
 
   const finalSkinColor = isBroken ? "#94a3b8" : skinColor;
   let finalOutfitColor = isBroken ? "#334155" : (outfitColor || "#27272a");
@@ -33,163 +48,211 @@ const HeroAvatar: React.FC<HeroAvatarProps> = ({ appearance, user, size = 120, c
   if (bodyItem?.id === 'body-1') finalOutfitColor = "#52525b";
   if (bodyItem?.id === 'body-0') finalOutfitColor = "#92400e";
 
+  const hairOutline = "rgba(0,0,0,0.2)";
+
+  // Cálculos dinâmicos para a franja
+  // fringeDepth (0.5 padrão) -> Afeta o Y central (quanto mais alto o valor, mais desce no rosto)
+  // fringeCurvature (0.5 padrão) -> Afeta a diferença entre o centro e as laterais
+  const fY_base = 15; // Ponto de partida vertical médio da franja
+  const fDepth = fY_base + (fringeDepth * 15); // Profundidade final (15 a 30)
+  const fCurve = fDepth - (fringeCurvature * 12); // Curvatura lateral (mais alto que o centro)
+
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" className={`hero-float ${className}`} style={{ overflow: 'visible' }}>
+    <svg width={size} height={size} viewBox="-10 -20 120 140" className={`hero-float ${className}`} style={{ overflow: 'visible' }}>
       <defs>
-        <filter id="shadowDepth" x="-20%" y="-20%" width="140%" height="140%">
-           <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodOpacity="0.3"/>
+        <filter id="eyeGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
-        <radialGradient id="faceShade" cx="50%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.1" />
-          <stop offset="60%" stopColor="black" stopOpacity="0.05" />
-          <stop offset="100%" stopColor="black" stopOpacity="0.25" />
-        </radialGradient>
-        <linearGradient id="outfitGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="white" stopOpacity="0.1" />
-          <stop offset="100%" stopColor="black" stopOpacity="0.2" />
-        </linearGradient>
+        <clipPath id="headMask">
+          <rect x="22" y="15" width="56" height="58" rx="24" ry="24" />
+        </clipPath>
       </defs>
 
-      {/* 1. Camada de Cabelo Traseira (Atrás da cabeça) */}
-      {!isBroken && !headItem && (
-        <g fill={hairColor}>
-          {hairStyle === 'long' && (
-            <path d="M 20 40 Q 5 75 20 105 L 80 105 Q 95 75 80 40 Z" />
+      {/* 1. CABELO CAMADA DE TRÁS */}
+      {!isBroken && (!headItem || isHoodEquipped) && (
+        <g fill={hairColor} stroke={hairOutline} strokeWidth="0.5">
+          {effectiveHairStyle === 'long' && <path d="M 18 35 Q 18 0 50 0 Q 82 0 82 35 L 92 90 Q 50 82 8 90 Z" />}
+          {effectiveHairStyle === 'bob' && <path d="M 18 35 Q 18 2 50 2 Q 82 2 82 35 L 86 70 Q 50 62 14 70 Z" />}
+          {effectiveHairStyle === 'braids' && (
+            <>
+              <path d="M 15 35 Q 15 0 50 0 Q 85 0 85 35 L 85 85 Q 75 90 70 85 L 70 35 Z" />
+              <path d="M 15 35 L 30 35 L 30 85 Q 25 90 15 85 Z" />
+            </>
           )}
-          {hairStyle === 'bob' && (
-            <path d="M 20 40 Q 15 70 25 90 L 75 90 Q 85 70 80 40 Z" />
+          {effectiveHairStyle === 'hood' && (
+             <path d="M 12 45 Q 12 -8 50 -8 Q 88 -8 88 45 L 92 85 Q 50 80 8 85 Z" fill={finalOutfitColor} stroke="none" />
           )}
-          {hairStyle === 'braids' && (
-            <g>
-              <path d="M 22 45 Q 10 70 25 105" fill="none" stroke={hairColor} strokeWidth="7" strokeLinecap="round" />
-              <path d="M 78 45 Q 90 70 75 105" fill="none" stroke={hairColor} strokeWidth="7" strokeLinecap="round" />
+        </g>
+      )}
+
+      {/* 2. CORPO / TORSO */}
+      <path d="M 12 88 Q 50 82 88 88 L 98 135 L 2 135 Z" fill={finalOutfitColor} />
+      
+      {/* 3. PESCOÇO */}
+      <rect x="41" y={68} width="18" height="24" fill={finalSkinColor} opacity="0.95" />
+      <path d="M 41 78 Q 50 82 59 78" stroke="rgba(0,0,0,0.1)" strokeWidth="1" fill="none" />
+
+      {/* 4. CABEÇA BASE */}
+      <rect x="22" y="15" width="56" height="58" rx="24" ry="24" fill={finalSkinColor} />
+
+      {/* 5. SOMBRA INTERNA DO CAPUZ */}
+      {!isBroken && effectiveHairStyle === 'hood' && (!headItem || isHoodEquipped) && (
+        <g clipPath="url(#headMask)">
+          {/* Sombra mais circular e profunda ao redor dos olhos */}
+          <path d="M 22 15 L 78 15 L 78 62 Q 50 48 22 62 Z" fill="rgba(0,0,0,0.96)" />
+        </g>
+      )}
+
+      {/* 6. SOBRANCELHAS */}
+      {!isBroken && (
+        <g fill={hairColor} stroke={hairOutline} strokeWidth="0.5">
+          {eyebrowStyle === 'normal' && (
+            <>
+              <rect x="30" y="34" width="14" height="2.5" rx="1.2" transform="rotate(-5 37 35)" />
+              <rect x="56" y="34" width="14" height="2.5" rx="1.2" transform="rotate(5 63 35)" />
+            </>
+          )}
+          {eyebrowStyle === 'thick' && (
+            <>
+              <rect x="29" y="33" width="16" height="4.5" rx="2.2" transform="rotate(-3 37 35)" />
+              <rect x="55" y="33" width="16" height="4.5" rx="2.2" transform="rotate(3 63 35)" />
+            </>
+          )}
+          {eyebrowStyle === 'thin' && (
+            <>
+              <rect x="31" y="35" width="12" height="1.2" rx="0.6" />
+              <rect x="57" y="35" width="12" height="1.2" rx="0.6" />
+            </>
+          )}
+          {eyebrowStyle === 'angry' && (
+            <>
+              <rect x="30" y="33" width="15" height="3" rx="1" transform="rotate(15 37 35)" />
+              <rect x="55" y="33" width="15" height="3" rx="1" transform="rotate(-15 63 35)" />
+            </>
+          )}
+        </g>
+      )}
+
+      {/* 7. OLHOS */}
+      {!isBroken && (
+        <g>
+          {eyeStyle === 'round' && (
+            <>
+              <circle cx="38" cy="42" r="4.5" fill="white" />
+              <circle cx="38" cy="42" r="2.5" fill={eyeColor} />
+              <circle cx="62" cy="42" r="4.5" fill="white" />
+              <circle cx="62" cy="42" r="2.5" fill={eyeColor} />
+            </>
+          )}
+          {eyeStyle === 'sharp' && (
+            <>
+              <path d="M 31 43 Q 38 38 47 42 L 46 47 Q 38 45 32 47 Z" fill="white" />
+              <circle cx="39" cy="44.5" r="2.2" fill={eyeColor} />
+              <path d="M 53 42 Q 62 38 69 43 L 68 47 Q 62 45 54 47 Z" fill="white" />
+              <circle cx="61" cy="44.5" r="2.2" fill={eyeColor} />
+            </>
+          )}
+          {eyeStyle === 'glow' && (
+            <>
+              <circle cx="38" cy="42" r="5" fill={eyeColor} filter="url(#eyeGlow)" opacity="0.8" />
+              <circle cx="38" cy="42" r="2" fill="white" />
+              <circle cx="62" cy="42" r="5" fill={eyeColor} filter="url(#eyeGlow)" opacity="0.8" />
+              <circle cx="62" cy="42" r="2" fill="white" />
+            </>
+          )}
+          {eyeStyle === 'large' && (
+            <>
+              <circle cx="37" cy="42" r="6" fill="white" />
+              <circle cx="37" cy="42" r="3.5" fill={eyeColor} />
+              <circle cx="63" cy="42" r="6" fill="white" />
+              <circle cx="63" cy="42" r="3.5" fill={eyeColor} />
+            </>
+          )}
+          {eyeStyle === 'closed' && (
+            <g stroke="rgba(0,0,0,0.6)" strokeWidth="2" fill="none" strokeLinecap="round">
+              <path d="M 32 44 Q 39 41 46 44" />
+              <path d="M 54 44 Q 61 41 68 44" />
             </g>
           )}
         </g>
       )}
 
-      {/* 2. Traje / Corpo */}
-      <g>
-        <path d="M 15 85 Q 50 78 85 85 L 95 160 L 5 160 Z" fill={finalOutfitColor} />
-        <path d="M 15 85 Q 50 78 85 85 L 95 160 L 5 160 Z" fill="url(#outfitGradient)" />
+      {/* 8. BARBAS */}
+      {!isBroken && facialHair !== 'none' && (
+        <g fill={facialHairColor} stroke={hairOutline} strokeWidth="0.5">
+          {facialHair === 'stubble' && (
+             <g clipPath="url(#headMask)">
+                {/* Reduzindo levemente as bordas do stubble para garantir que fique interno ao rosto */}
+                <path d="M 23 55 Q 50 80 77 55 L 77 71 Q 50 82 23 71 Z" opacity="0.3" stroke="none" />
+             </g>
+          )}
+          {facialHair === 'beard' && <path d="M 22 50 Q 50 90 78 50 L 78 73 Q 50 85 22 73 Z" />}
+          {facialHair === 'goatee' && (
+            <>
+              <path d="M 36 56 Q 50 51 64 56 L 64 59 Q 50 54 36 59 Z" />
+              <path d="M 45 74 Q 50 82 55 74 L 55 77 Q 50 84 45 77 Z" />
+            </>
+          )}
+          {facialHair === 'mustache' && <path d="M 36 56 Q 50 51 64 56 L 64 60 Q 50 55 36 60 Z" />}
+        </g>
+      )}
+
+      {/* 7. BOCA / EXPRESSÃO */}
+      <g stroke="rgba(0,0,0,0.6)" fill="none" strokeLinecap="round">
+        {expression === 'happy' && <path d="M 42 58 Q 50 64 58 58" strokeWidth="2.5" />}
+        {expression === 'neutral' && <path d="M 44 60 L 56 60" strokeWidth="1.5" />}
+        {expression === 'focused' && <path d="M 43 61 L 57 61" strokeWidth="3" stroke="rgba(0,0,0,0.8)" />}
+        {expression === 'grin' && <rect x="44" y="58" width="12" height="4" rx="2" fill="white" stroke="rgba(0,0,0,0.2)" strokeWidth="0.5" />}
+        {expression === 'angry' && <path d="M 42 63 Q 50 58 58 63" strokeWidth="2.5" />}
+        {expression === 'tired' && <circle cx="50" cy="61" r="1.5" fill="rgba(0,0,0,0.4)" stroke="none" />}
+        {expression === 'surprised' && <circle cx="50" cy="60" r="3" strokeWidth="2" />}
       </g>
 
-      {/* 3. Pescoço */}
-      <rect x="42" y="65" width="16" height="15" fill={finalSkinColor} opacity="0.9" />
-      <rect x="42" y="65" width="16" height="15" fill="black" opacity="0.15" />
-
-      {/* 4. Cabeça e Rosto */}
-      {!isBroken ? (
-        <g filter="url(#shadowDepth)">
-          {/* Base da Pele */}
-          <circle cx="50" cy="45" r="28" fill={finalSkinColor} />
-          
-          {/* CAMADA DE SOMBREAMENTO DO ROSTO (Novo) */}
-          <circle cx="50" cy="45" r="28" fill="url(#faceShade)" />
-          
-          {/* Olhos e Expressões */}
-          <g transform="translate(0, 0)">
-            {eyeStyle === 'round' && (
-              <g>
-                <circle cx="41" cy="46" r="4.5" fill="white" />
-                <circle cx="41" cy="46" r="2.5" fill={eyeColor} />
-                <circle cx="42" cy="45" r="1" fill="white" opacity="0.6" />
-                <circle cx="59" cy="46" r="4.5" fill="white" />
-                <circle cx="59" cy="46" r="2.5" fill={eyeColor} />
-                <circle cx="60" cy="45" r="1" fill="white" opacity="0.6" />
-              </g>
-            )}
-            {eyeStyle === 'sharp' && (
-              <g>
-                <path d="M 35 46 Q 41 41 47 46 Q 41 49 35 46" fill="white" />
-                <circle cx="41" cy="46" r="2" fill={eyeColor} />
-                <path d="M 53 46 Q 59 41 65 46 Q 59 49 53 46" fill="white" />
-                <circle cx="59" cy="46" r="2" fill={eyeColor} />
-              </g>
-            )}
-            {eyeStyle === 'glow' && (
-              <g>
-                <circle cx="41" cy="46" r="5" fill={eyeColor} className="animate-pulse" filter="blur(1px)" />
-                <circle cx="41" cy="46" r="2" fill="white" opacity="0.8" />
-                <circle cx="59" cy="46" r="5" fill={eyeColor} className="animate-pulse" filter="blur(1px)" />
-                <circle cx="59" cy="46" r="2" fill="white" opacity="0.8" />
-              </g>
-            )}
-            {eyeStyle === 'large' && (
-              <g>
-                <circle cx="39" cy="46" r="6.5" fill="white" />
-                <circle cx="39" cy="46" r="4" fill={eyeColor} />
-                <circle cx="61" cy="46" r="6.5" fill="white" />
-                <circle cx="61" cy="46" r="4" fill={eyeColor} />
-              </g>
-            )}
-            {eyeStyle === 'closed' && (
-              <g>
-                <path d="M 37 46 Q 41 50 45 46" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-                <path d="M 55 46 Q 59 50 63 46" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-              </g>
-            )}
-
-            {expression === 'happy' && <path d="M 44 58 Q 50 66 56 58" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" opacity="0.6" />}
-            {expression === 'neutral' && <path d="M 43 62 L 57 62" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" opacity="0.5" />}
-            {expression === 'grin' && <path d="M 40 58 Q 50 70 60 58 L 40 58 Z" fill="white" stroke="#000" strokeWidth="1" opacity="0.9" />}
-            {expression === 'angry' && <path d="M 44 64 Q 50 58 56 64" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" opacity="0.7" />}
-            {expression === 'focused' && <path d="M 44 60 L 56 60" fill="none" stroke="#000" strokeWidth="4" strokeLinecap="round" opacity="0.5" />}
-            {expression === 'tired' && <path d="M 46 63 Q 50 61 54 63" fill="none" stroke="#000" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />}
-            {expression === 'surprised' && <circle cx="50" cy="62" r="4" fill="none" stroke="#000" strokeWidth="2" opacity="0.5" />}
-          </g>
-        </g>
-      ) : (
-        <g filter="url(#shadowDepth)">
-          <path d="M 30 50 C 30 25 70 25 70 50 C 70 65 65 75 50 75 C 35 75 30 65 30 50" fill="#e2e8f0" />
-          <circle cx="42" cy="52" r="5" fill="#1e293b" />
-          <circle cx="58" cy="52" r="5" fill="#1e293b" />
-          <path d="M 46 68 L 54 68" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-        </g>
-      )}
-
-      {/* 5. Camada de Cabelo Frontal (Sobre o rosto, mas respeitando olhos) */}
-      {!isBroken && !headItem && (
-        <g fill={hairColor} filter="url(#shadowDepth)">
-          {/* Franja base para a maioria dos estilos */}
-          {(hairStyle === 'short' || hairStyle === 'long' || hairStyle === 'bob' || hairStyle === 'braids') && (
-            <path d="M 22 36 C 22 12 78 12 78 36 Q 50 24 22 36 Z" />
+      {/* 9. CABELO CAMADA DA FRENTE */}
+      {!isBroken && (!headItem || isHoodEquipped) && (
+        <g fill={hairColor} stroke={hairOutline} strokeWidth="0.5">
+          {effectiveHairStyle === 'short' && (
+            <path d="M 22 40 Q 22 5 50 5 Q 78 5 78 40 Q 70 20 50 20 Q 30 20 22 40 Z" />
           )}
-          {/* Mechas laterais frontais para estilos longos/médios */}
-          {(hairStyle === 'long' || hairStyle === 'bob' || hairStyle === 'braids') && (
-            <g>
-               <path d="M 22 36 Q 20 60 26 80 L 32 80 Q 28 55 30 35 Z" />
-               <path d="M 78 36 Q 80 60 74 80 L 68 80 Q 72 55 70 35 Z" />
-            </g>
+          {effectiveHairStyle === 'spiky' && (
+            <path d="M 22 40 L 15 20 L 28 30 L 35 2 L 45 28 L 50 0 L 55 28 L 65 2 L 72 30 L 85 20 L 78 40 Q 50 22 22 40 Z" />
           )}
-          {hairStyle === 'spiky' && (
-            <path d="M 20 38 L 5 12 L 35 27 L 50 -5 L 65 27 L 95 12 L 80 38 Q 50 28 20 38 Z" />
+          {effectiveHairStyle === 'mohawk' && (
+            <path d="M 44 40 L 44 0 Q 50 -5 56 0 L 56 40 Z" />
           )}
-          {hairStyle === 'mohawk' && (
-            <path d="M 44 35 L 44 2 L 56 2 L 56 35 Z" />
+          {effectiveHairStyle === 'long' && (
+            <path d={`M 22 40 Q 22 10 50 10 Q 78 10 78 40 Q 72 ${fCurve} 50 ${fDepth} Q 28 ${fCurve} 22 40 Z`} />
           )}
-          {hairStyle === 'hood' && (
-            <path d="M 18 42 C 18 10 82 10 82 42 L 88 50 Q 92 15 50 8 Q 8 15 12 50 Z" fill="#18181b" />
+          {effectiveHairStyle === 'bob' && (
+            <path d={`M 18 40 Q 18 12 50 12 Q 82 12 82 40 Q 70 ${fCurve} 50 ${fDepth} Q 30 ${fCurve} 18 40 Z`} />
+          )}
+          {effectiveHairStyle === 'braids' && (
+            <path d={`M 22 40 Q 50 2 78 40 Q 70 ${fCurve} 50 ${fDepth} Q 30 ${fCurve} 22 40 Z`} />
+          )}
+          {effectiveHairStyle === 'hood' && (
+             <g stroke="none">
+                {/* Abertura mais circular e pronunciada */}
+                <path d="M 20 50 Q 20 12 50 8 Q 80 12 80 50 L 84 75 Q 50 68 16 75 Z M 24 50 Q 24 16 50 14 Q 76 16 76 50 L 78 72 Q 50 65 22 72 Z" fill={finalOutfitColor} fillRule="evenodd" />
+                {/* Dobra interna sutil na ponta superior */}
+                <path d="M 44 14 Q 50 18 56 14" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="1.2" strokeLinecap="round" />
+             </g>
           )}
         </g>
       )}
 
-      {/* 6. Elmo / Equipamento de Cabeça (Sempre no topo) */}
-      {!isBroken && headItem && (
-        <g transform="translate(0, -6)" filter="url(#shadowDepth)">
-           {headItem.id === 'head-legend' && (
-             <g>
-                <path d="M 18 40 L 25 10 L 38 32 L 50 0 L 62 32 L 75 10 L 82 40 Z" fill="#fbbf24" stroke="#d97706" strokeWidth="1" />
-                <circle cx="50" cy="22" r="3.5" fill="#ef4444" className="animate-pulse" />
-             </g>
-           )}
-           {headItem.id === 'head-1' && (
-             <g>
-                <path d="M 20 44 C 20 12 80 12 80 44 L 88 58 L 12 58 Z" fill="#475569" stroke="#1e293b" strokeWidth="2" />
-                <rect x="42" y="30" width="16" height="4" fill="#1e293b" rx="2" />
-             </g>
-           )}
-           {headItem.id === 'head-0' && <path d="M 20 44 C 20 12 80 12 80 44 L 84 52 L 16 52 Z" fill="#3f3f46" stroke="#18181b" strokeWidth="1.5" />}
+      {/* 10. EQUIPAMENTOS DE CABEÇA */}
+      {!isBroken && headItem && !isHoodEquipped && (
+        <g>
+          {headItem.id === 'head-legend' && (
+            <path d="M 18 35 L 30 15 L 40 32 L 50 5 L 60 32 L 70 15 L 82 35 Z" fill="#fbbf24" stroke="#b45309" strokeWidth="1.5" />
+          )}
+          {headItem.id === 'head-1' && (
+            <path d="M 18 45 Q 18 10 50 10 Q 82 10 82 45 L 86 52 L 14 52 Z" fill="#94a3b8" stroke="#1e293b" strokeWidth="2" />
+          )}
+          {headItem.id === 'head-0' && (
+            <path d="M 20 45 Q 20 12 50 12 Q 80 12 80 45 L 85 55 L 15 55 Z" fill="#52525b" />
+          )}
         </g>
       )}
     </svg>

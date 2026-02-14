@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { User, Task, Rarity, InventoryItem, Difficulty, CharacterClass, Appearance, EquipmentSlot, Skill } from './types';
+import { User, Task, Rarity, InventoryItem, Difficulty, CharacterClass, Appearance, EquipmentSlot, Skill, ItemType } from './types';
 import { db } from './services/db';
 import { geminiService } from './services/gemini';
 import { RARITIES, DIFFICULTIES, CLASSES, THEMES, INITIAL_SKILLS, CLASS_STATS, SHOP_ITEMS, CAMPAIGN_CHAPTERS, BASE_INVENTORY_CAPACITY } from './constants';
@@ -34,17 +34,34 @@ const App: React.FC = () => {
   const [lastRecoveryTime, setLastRecoveryTime] = useState(Date.now());
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
 
-  // Filtros de Missão
+  const notifiedTasks = useRef<Set<string>>(new Set());
+
   const [rarityFilter, setRarityFilter] = useState<Rarity | 'all'>('all');
   const [diffFilter, setDiffFilter] = useState<Difficulty | 'all'>('all');
 
   const [inventorySearch, setInventorySearch] = useState('');
+  const [inventoryTypeFilter, setInventoryTypeFilter] = useState<ItemType | 'all'>('all');
+
   const [aiMessage, setAiMessage] = useState<string>('O mestre da guilda observa sua coragem...');
   const [scrollPos, setScrollPos] = useState(0);
 
   const currentTheme = THEMES[user?.activeTheme as keyof typeof THEMES] || THEMES['theme-default'];
 
-  // Sincronização entre abas e janelas
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendPushNotification = (title: string, body: string) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, {
+        body,
+        icon: "/favicon.ico",
+      });
+    }
+  };
+
   useEffect(() => {
     const handleSync = () => {
       const sessionEmail = db.getSession();
@@ -64,7 +81,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Loop principal de tempo
   useEffect(() => {
     const timer = setInterval(() => {
       const currentTime = Date.now();
@@ -74,7 +90,6 @@ const App: React.FC = () => {
         let needsUpdate = false;
         let updatedUser = { ...prev };
 
-        // Recuperação passiva de HP
         if (currentTime - lastRecoveryTime >= 30000) {
           if (updatedUser.hp < updatedUser.maxHp && !updatedUser.isBroken) {
             updatedUser.hp = Math.min(updatedUser.maxHp, updatedUser.hp + 2);
@@ -83,7 +98,6 @@ const App: React.FC = () => {
           setLastRecoveryTime(currentTime);
         }
 
-        // Progresso das tarefas ativas
         const updatedTasks = (updatedUser.tasks || []).map(t => {
           if (t.startTime && !t.isPaused && !t.done) {
             const targetMs = (t.durationMinutes || 5) * 60 * 1000;
@@ -92,6 +106,19 @@ const App: React.FC = () => {
             
             if (newAccumulated !== t.accumulatedTimeMs) {
               needsUpdate = true;
+              
+              const progressPct = (newAccumulated / targetMs) * 100;
+
+              if (progressPct >= 80 && progressPct < 100 && !notifiedTasks.current.has(`${t.id}_80`)) {
+                sendPushNotification("Quase lá, Herói!", `Sua missão "${t.title}" está 80% concluída. Mantenha o foco!`);
+                notifiedTasks.current.add(`${t.id}_80`);
+              }
+              
+              if (progressPct >= 100 && !notifiedTasks.current.has(`${t.id}_100`)) {
+                sendPushNotification("Missão Cumprida!", `O contrato "${t.title}" foi finalizado. Reivindique sua recompensa!`);
+                notifiedTasks.current.add(`${t.id}_100`);
+              }
+
               return { 
                 ...t, 
                 accumulatedTimeMs: Math.min(targetMs, newAccumulated),
@@ -172,9 +199,11 @@ const App: React.FC = () => {
     };
     if (user.guildId) db.addGuildXp(user.guildId, xpGain);
     updateAndSave(updatedUser);
+    
+    notifiedTasks.current.delete(`${taskId}_80`);
+    notifiedTasks.current.delete(`${taskId}_100`);
   };
 
-  // Função centralizada e robusta para deletar tarefas
   const confirmDeleteTask = (taskId: string) => {
     setUser(prev => {
       if (!prev) return null;
@@ -186,6 +215,8 @@ const App: React.FC = () => {
       return updatedUser;
     });
     setTaskToDelete(null);
+    notifiedTasks.current.delete(`${taskId}_80`);
+    notifiedTasks.current.delete(`${taskId}_100`);
   };
 
   const handlePauseToggle = (taskId: string) => {
@@ -225,9 +256,20 @@ const App: React.FC = () => {
     if (!user) return;
     let updated = { ...user };
     const safeEquipment = updated.equipment || { head: null, body: null, acc1: null, acc2: null, special: null };
+    
     if (item.type === 'equipment' && item.slot) {
       const slot = item.slot;
       updated.equipment = { ...safeEquipment, [slot]: safeEquipment[slot] === item.id ? null : item.id };
+    } else if (item.type === 'theme' && item.themeClass) {
+      updated.activeTheme = item.themeClass;
+    } else if (item.type === 'skin') {
+      if (item.id === 'skin-hood') {
+        const isCurrentlyHood = updated.appearance.hairStyle === 'hood';
+        updated.appearance = {
+          ...updated.appearance,
+          hairStyle: isCurrentlyHood ? 'short' : 'hood'
+        };
+      }
     } else if (item.type === 'buff') {
       if (item.id === 'potion-0') updated.hp = Math.min(updated.maxHp, updated.hp + 5);
       if (item.id === 'potion-1') updated.hp = Math.min(updated.maxHp, updated.hp + 20);
@@ -266,6 +308,8 @@ const App: React.FC = () => {
       tasks: (user.tasks || []).map(t => t.id === taskId ? { ...t, done: true, failed: true, doneAt: Date.now(), startTime: null, isPaused: false } : t)
     });
     setTaskToAbandon(null);
+    notifiedTasks.current.delete(`${taskId}_80`);
+    notifiedTasks.current.delete(`${taskId}_100`);
   };
 
   const formatTime = (ms: number) => {
@@ -290,6 +334,20 @@ const App: React.FC = () => {
     if (diffFilter !== 'all') list = list.filter(t => t.difficulty === diffFilter);
     return list;
   }, [user?.tasks, questSubTab, rarityFilter, diffFilter]);
+
+  const filteredInventory = useMemo(() => {
+    let list = (user?.inventory || []);
+    if (inventoryTypeFilter !== 'all') {
+      list = list.filter(i => i.type === inventoryTypeFilter);
+    }
+    if (inventorySearch) {
+      list = list.filter(i => 
+        i.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+        i.description.toLowerCase().includes(inventorySearch.toLowerCase())
+      );
+    }
+    return list;
+  }, [user?.inventory, inventoryTypeFilter, inventorySearch]);
 
   const isExhausted = exhaustionEndTime !== null && now < exhaustionEndTime;
   const exhaustionSecondsLeft = isExhausted ? Math.ceil((exhaustionEndTime! - now) / 1000) : 0;
@@ -471,7 +529,6 @@ const App: React.FC = () => {
                         return (
                           <div key={task.id} className={`p-8 md:p-12 rounded-[3.5rem] border-2 shadow-2xl relative overflow-hidden flex flex-col gap-8 transition-all duration-700 animate-in slide-in-from-bottom-4 group ${rarityCfg.bg} ${rarityCfg.shadow} ${isRunning && !isReady ? 'ring-2 ring-white/10' : ''} ${task.done ? 'opacity-70' : 'hover:scale-[1.01] hover:brightness-110'}`} style={{ borderColor: rarityCfg.color.split(' ')[1].replace('border-', '#').replace('700', '444') }}>
                              
-                             {/* Botão de Excluir (X) - SÓ APARECE NO MURAL SE NÃO TIVER COMEÇADO */}
                              {!isRunning && !task.done && (
                                <div className="absolute top-6 right-8">
                                   <button 
@@ -500,16 +557,6 @@ const App: React.FC = () => {
                                   <div className={`text-right bg-zinc-950/60 p-6 rounded-3xl border border-white/5 shadow-inner transition-all ${task.isPaused ? 'opacity-40 scale-95 grayscale' : 'opacity-100'}`}>
                                      <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest block mb-1">Tempo Restante</span>
                                      <span className="text-6xl font-black font-mono text-white tracking-tighter tabular-nums">{formatTime(remainingMs)}</span>
-                                  </div>
-                                )}
-                                {task.done && (
-                                  <div className="text-right">
-                                     <span className={`text-[9px] font-black uppercase tracking-[0.3em] block mb-2 animate-pulse ${task.failed ? 'text-red-500' : 'text-emerald-500'}`}>
-                                       {task.failed ? 'Jornada Fracassada' : 'Jornada Consumada'}
-                                     </span>
-                                     <span className="text-xs text-zinc-500 font-bold italic">
-                                       {task.failed ? 'Abandonada em' : 'Finalizada em'} {new Date(task.doneAt!).toLocaleDateString()}
-                                     </span>
                                   </div>
                                 )}
                              </div>
@@ -565,67 +612,108 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* Modais de Confirmação */}
-          {taskToDelete && (
-            <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
-               <div className="max-w-md w-full bg-zinc-900 border-2 border-red-600/50 rounded-[4rem] p-16 text-center shadow-[0_0_100px_rgba(220,38,38,0.3)] animate-in zoom-in-95">
-                  <div className="text-7xl mb-8">🗑️</div>
-                  <h3 className="text-4xl font-rpg text-white font-black uppercase mb-4 tracking-tighter">Apagar Lenda?</h3>
-                  <p className="text-zinc-500 mb-12 text-sm font-medium">Este registro será removido permanentemente dos arquivos do reino.</p>
-                  <div className="flex flex-col gap-4">
-                     <button onClick={() => confirmDeleteTask(taskToDelete)} className="w-full py-6 bg-red-600 text-white rounded-[2rem] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-xl active:scale-95 border-b-4 border-red-800">Sim, Expurgar</button>
-                     <button onClick={() => setTaskToDelete(null)} className="w-full py-6 bg-zinc-800 text-zinc-400 rounded-[2rem] font-black uppercase tracking-widest hover:text-white transition-all active:scale-95">Manter Registro</button>
-                  </div>
-               </div>
-            </div>
-          )}
-
-          {taskToAbandon && (
-            <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
-               <div className="max-w-md w-full bg-zinc-900 border-2 border-red-600/50 rounded-[4rem] p-16 text-center shadow-[0_0_100px_rgba(220,38,38,0.3)] animate-in zoom-in-95">
-                  <div className="text-7xl mb-8">🩸</div>
-                  <h3 className="text-4xl font-rpg text-red-600 font-black uppercase mb-4 tracking-tighter">Abandonar?</h3>
-                  <p className="text-zinc-500 mb-2 text-xs font-black uppercase tracking-widest">Penalidade de Vida:</p>
-                  <p className="text-red-500 text-6xl font-black mb-12">-{RARITIES[user?.tasks?.find(t=>t.id===taskToAbandon)?.rarity || 'comum']?.hpCost || 5} HP</p>
-                  <div className="flex flex-col gap-4">
-                     <button onClick={()=>handleCancelTask(taskToAbandon)} className="w-full py-6 bg-red-600 text-white rounded-[2rem] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-xl active:scale-95 border-b-4 border-red-800">Aceitar Derrota</button>
-                     <button onClick={()=>setTaskToAbandon(null)} className="w-full py-6 bg-zinc-800 text-zinc-400 rounded-[2rem] font-black uppercase tracking-widest hover:text-white transition-all active:scale-95">Continuar Jornada</button>
-                  </div>
-               </div>
-            </div>
-          )}
-
-          {/* Abas Restantes */}
           {activeTab === 'inventory' && (
-            <div className="max-w-6xl mx-auto space-y-12 pb-32 animate-in fade-in duration-700 relative z-20 px-4">
-               <header className="flex justify-between items-end gap-6">
-                  <h2 className="text-6xl font-rpg text-white uppercase tracking-tighter">SUA <span className="text-indigo-400">MOCHILA</span></h2>
-                  <div className="relative w-full md:w-80 group">
-                    <input type="text" placeholder="Filtrar tesouros..." value={inventorySearch} onChange={e=>setInventorySearch(e.target.value)} className="w-full bg-zinc-900/60 border border-zinc-800 rounded-2xl px-6 py-4 text-[10px] font-bold outline-none focus:border-indigo-500 transition-all" />
+            <div className="max-w-7xl mx-auto space-y-12 pb-32 animate-in fade-in duration-700 relative z-20 px-4 md:px-8">
+               <header className="flex flex-col lg:flex-row justify-between lg:items-end gap-10">
+                  <div className="space-y-4">
+                    <h2 className="text-7xl font-rpg text-white uppercase tracking-tighter leading-none">SUA <span className="text-indigo-400">MOCHILA</span></h2>
+                    <div className="flex items-center gap-6">
+                       <div className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+                         <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                         <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">{user?.inventory.length} / {user?.inventoryCapacity} Capacidade</span>
+                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
+                    <div className="flex p-1.5 bg-zinc-900/60 rounded-[1.8rem] border border-zinc-800 w-full md:w-auto">
+                       {[
+                         {id:'all', label:'Tudo', icon: '💎'},
+                         {id:'equipment', label:'Equipos', icon: '⚔️'},
+                         {id:'buff', label:'Itens', icon: '🧪'},
+                         {id:'theme', label:'Temas', icon: '🔮'},
+                         {id:'skin', label:'Skins', icon: '🎭'}
+                       ].map(cat => (
+                         <button 
+                          key={cat.id} 
+                          onClick={() => setInventoryTypeFilter(cat.id as any)}
+                          className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 ${inventoryTypeFilter === cat.id ? 'bg-white text-black shadow-xl' : 'text-zinc-500 hover:text-white'}`}
+                         >
+                           <span className="hidden sm:inline">{cat.icon}</span> {cat.label}
+                         </button>
+                       ))}
+                    </div>
+                    <div className="relative w-full md:w-72 group">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-400 transition-colors">🔍</div>
+                      <input 
+                        type="text" 
+                        placeholder="Buscar no grimório..." 
+                        value={inventorySearch} 
+                        onChange={e=>setInventorySearch(e.target.value)} 
+                        className="w-full bg-zinc-900/40 border border-zinc-800 rounded-3xl pl-12 pr-6 py-4 text-[10px] font-black text-white outline-none focus:border-indigo-500 focus:ring-4 ring-indigo-500/10 transition-all placeholder:text-zinc-700" 
+                      />
+                    </div>
                   </div>
                </header>
-               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                  <div className="lg:col-span-5 bg-zinc-900/30 border border-zinc-800/60 rounded-[4rem] p-12 flex flex-col items-center justify-between shadow-3xl">
-                     <div className="relative w-full aspect-square max-w-sm flex items-center justify-center">
-                        <div className="w-48 h-48 bg-zinc-950/60 rounded-full border border-zinc-800/40 shadow-inner flex items-center justify-center relative z-10 overflow-hidden">
-                           <HeroAvatar appearance={user!.appearance} user={user!} size={220} className="translate-y-4" />
+
+               <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-start">
+                  <div className="xl:col-span-5 bg-zinc-900/20 border border-zinc-800/40 rounded-[4.5rem] p-10 md:p-14 flex flex-col items-center justify-center shadow-3xl relative overflow-hidden group">
+                     <div className="absolute inset-0 bg-indigo-500/5 blur-[120px] pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-1000" />
+                     
+                     <div className="relative w-full aspect-square max-w-md flex items-center justify-center">
+                        <div className="w-56 h-56 md:w-64 md:h-64 bg-zinc-950/40 rounded-full border-2 border-zinc-800/30 shadow-inner flex items-center justify-center relative z-10 overflow-hidden backdrop-blur-sm">
+                           <HeroAvatar appearance={user!.appearance} user={user!} size={320} className="translate-y-10" />
                         </div>
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4"><EquipSlot slot="head" user={user!} onSelect={setSelectedInventoryItem} /></div>
-                        <div className="absolute bottom-0 left-1/4 -translate-x-1/2 translate-y-4"><EquipSlot slot="body" user={user!} onSelect={setSelectedInventoryItem} /></div>
-                        <div className="absolute bottom-0 right-1/4 translate-x-1/2 translate-y-4"><EquipSlot slot="special" user={user!} onSelect={setSelectedInventoryItem} /></div>
-                        <div className="absolute top-1/2 left-0 -translate-x-4 -translate-y-1/2"><EquipSlot slot="acc1" user={user!} onSelect={setSelectedInventoryItem} /></div>
-                        <div className="absolute top-1/2 right-0 translate-x-4 -translate-y-1/2"><EquipSlot slot="acc2" user={user!} onSelect={setSelectedInventoryItem} /></div>
+
+                        {/* Posicionamento ajustado para evitar sobreposições e manter harmonia */}
+                        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 z-20 scale-100">
+                          <EquipSlot slot="head" user={user!} onSelect={setSelectedInventoryItem} />
+                        </div>
+                        <div className="absolute top-[40%] left-[-10%] z-20 scale-100">
+                          <EquipSlot slot="acc1" user={user!} onSelect={setSelectedInventoryItem} />
+                        </div>
+                        <div className="absolute top-[40%] right-[-10%] z-20 scale-100">
+                          <EquipSlot slot="acc2" user={user!} onSelect={setSelectedInventoryItem} />
+                        </div>
+                        <div className="absolute bottom-[-10%] left-[25%] -translate-x-1/2 z-20 scale-100">
+                          <EquipSlot slot="body" user={user!} onSelect={setSelectedInventoryItem} />
+                        </div>
+                        <div className="absolute bottom-[-10%] right-[25%] translate-x-1/2 z-20 scale-100">
+                          <EquipSlot slot="special" user={user!} onSelect={setSelectedInventoryItem} />
+                        </div>
+
+                        <svg className="absolute inset-[-10%] w-[120%] h-[120%] pointer-events-none opacity-10" viewBox="0 0 100 100">
+                           <line x1="50" y1="10" x2="50" y2="30" stroke="white" strokeWidth="0.5" strokeDasharray="3 3" />
+                           <line x1="10" y1="50" x2="30" y2="50" stroke="white" strokeWidth="0.5" strokeDasharray="3 3" />
+                           <line x1="90" y1="50" x2="70" y2="50" stroke="white" strokeWidth="0.5" strokeDasharray="3 3" />
+                        </svg>
                      </div>
-                     <button className="mt-12 px-12 py-4 bg-zinc-800/40 border border-zinc-700/30 rounded-full text-[8px] font-black uppercase text-zinc-500 tracking-[0.4em] active:scale-95 transition-all">Armaria Ativa</button>
+
+                     <div className="mt-20 text-center space-y-2 relative z-10">
+                        <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.5em]">Arsenal Ativo</p>
+                        <p className="text-zinc-600 text-[8px] font-bold italic">Toque em um slot para gerenciar a peça</p>
+                     </div>
                   </div>
-                  <div className="lg:col-span-7 bg-zinc-900/30 border border-zinc-800/60 rounded-[4rem] p-12 shadow-3xl">
-                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 h-[500px] overflow-y-auto scrollbar-hide pr-2">
-                        {(user?.inventory || []).filter(i => i.name.toLowerCase().includes(inventorySearch.toLowerCase())).map((item, idx) => (
-                           <InventorySlot key={`${item.id}-${idx}`} item={item} isEquipped={user?.equipment ? Object.values(user.equipment).includes(item.id) : false} onClick={() => setSelectedInventoryItem(item)} />
-                        ))}
-                        {Array.from({ length: Math.max(0, (user?.inventoryCapacity || BASE_INVENTORY_CAPACITY) - (user?.inventory?.length || 0)) }).map((_, i) => (
-                           <div key={`empty-${i}`} className="aspect-square rounded-[1.8rem] border-2 border-zinc-900/30 bg-zinc-950/20 border-dashed opacity-10" />
-                        ))}
+
+                  <div className="xl:col-span-7 space-y-8">
+                     <div className="bg-zinc-900/20 border border-zinc-800/40 rounded-[4.5rem] p-8 md:p-12 shadow-3xl min-h-[600px] flex flex-col">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-5 pr-2 overflow-y-auto max-h-[650px] scrollbar-hide pb-6">
+                           {filteredInventory.map((item, idx) => (
+                              <InventorySlot 
+                                key={`${item.id}-${idx}`} 
+                                item={item} 
+                                isEquipped={
+                                  item.type === 'equipment' 
+                                    ? (user?.equipment ? Object.values(user.equipment).includes(item.id) : false)
+                                    : (item.type === 'theme' ? user?.activeTheme === item.themeClass : false)
+                                } 
+                                onClick={() => setSelectedInventoryItem(item)} 
+                              />
+                           ))}
+                           {Array.from({ length: Math.max(0, 15 - filteredInventory.length) }).map((_, i) => (
+                              <div key={`empty-${i}`} className="aspect-square rounded-[2rem] border-2 border-zinc-900/30 bg-zinc-950/10 border-dashed opacity-10" />
+                           ))}
+                        </div>
                      </div>
                   </div>
                </div>
@@ -633,7 +721,7 @@ const App: React.FC = () => {
           )}
 
           {activeTab === 'profile' && (
-            <div className="max-w-6xl mx-auto space-y-12 pb-32 animate-in fade-in duration-500 relative z-20 px-4">
+            <div className="max-w-6xl mx-auto space-y-12 pb-32 animate-in fade-in duration-700 relative z-20 px-4">
                <div className="bg-zinc-950/40 backdrop-blur-xl border-2 border-zinc-900 rounded-[5rem] p-12 overflow-hidden shadow-3xl">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-stretch">
                      <div className="lg:col-span-4 flex flex-col items-center bg-zinc-900/20 border border-zinc-800 rounded-[4rem] p-10 gap-10">
@@ -669,8 +757,47 @@ const App: React.FC = () => {
             <SettingsTab user={user!} onEditProfile={() => setIsEditingProfile(true)} onLogout={() => { db.logout(); window.location.reload(); }} onResetData={() => { localStorage.clear(); window.location.reload(); }} onCheat={handleCheat} animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled} />
           )}
 
+          {taskToDelete && (
+            <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
+               <div className="max-w-md w-full bg-zinc-900 border-2 border-red-600/50 rounded-[4rem] p-16 text-center shadow-[0_0_100px_rgba(220,38,38,0.3)] animate-in zoom-in-95">
+                  <div className="text-7xl mb-8">🗑️</div>
+                  <h3 className="text-4xl font-rpg text-white font-black uppercase mb-4 tracking-tighter">Apagar Lenda?</h3>
+                  <p className="text-zinc-500 mb-12 text-sm font-medium">Este registro será removido permanentemente dos arquivos do reino.</p>
+                  <div className="flex flex-col gap-4">
+                     <button onClick={() => confirmDeleteTask(taskToDelete)} className="w-full py-6 bg-red-600 text-white rounded-[2rem] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-xl active:scale-95 border-b-4 border-red-800">Sim, Expurgar</button>
+                     <button onClick={() => setTaskToDelete(null)} className="w-full py-6 bg-zinc-800 text-zinc-400 rounded-[2rem] font-black uppercase tracking-widest hover:text-white transition-all active:scale-95">Manter Registro</button>
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {taskToAbandon && (
+            <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300">
+               <div className="max-w-md w-full bg-zinc-900 border-2 border-red-600/50 rounded-[4rem] p-16 text-center shadow-[0_0_100px_rgba(220,38,38,0.3)] animate-in zoom-in-95">
+                  <div className="text-7xl mb-8">🩸</div>
+                  <h3 className="text-4xl font-rpg text-red-600 font-black uppercase mb-4 tracking-tighter">Abandonar?</h3>
+                  <p className="text-red-500 text-6xl font-black mb-12">-{RARITIES[user?.tasks?.find(t=>t.id===taskToAbandon)?.rarity || 'comum']?.hpCost || 5} HP</p>
+                  <div className="flex flex-col gap-4">
+                     <button onClick={()=>handleCancelTask(taskToAbandon)} className="w-full py-6 bg-red-600 text-white rounded-[2rem] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-xl active:scale-95 border-b-4 border-red-800">Aceitar Derrota</button>
+                     <button onClick={()=>setTaskToAbandon(null)} className="w-full py-6 bg-zinc-800 text-zinc-400 rounded-[2rem] font-black uppercase tracking-widest hover:text-white transition-all active:scale-95">Continuar Jornada</button>
+                  </div>
+               </div>
+            </div>
+          )}
+
           {selectedInventoryItem && (
-            <ItemDetailsModal item={selectedInventoryItem} user={user!} onClose={() => setSelectedInventoryItem(null)} onAction={handleEquipItem} actionLabel={user?.equipment && Object.values(user.equipment).includes(selectedInventoryItem.id) ? 'Remover' : 'Equipar'} />
+            <ItemDetailsModal 
+              item={selectedInventoryItem} 
+              user={user!} 
+              onClose={() => setSelectedInventoryItem(null)} 
+              onAction={handleEquipItem} 
+              actionLabel={
+                (selectedInventoryItem.type === 'equipment' && user?.equipment && Object.values(user.equipment).includes(selectedInventoryItem.id)) ||
+                (selectedInventoryItem.type === 'theme' && user?.activeTheme === selectedInventoryItem.themeClass)
+                ? 'Remover / Desativar' 
+                : selectedInventoryItem.type === 'equipment' ? 'Equipar no Herói' : selectedInventoryItem.type === 'theme' ? 'Aplicar Tema' : selectedInventoryItem.type === 'skin' ? 'Aplicar Estilo' : 'Usar Item'
+              } 
+            />
           )}
         </main>
       </div>
@@ -680,25 +807,75 @@ const App: React.FC = () => {
 
 const InventorySlot: React.FC<{ item: InventoryItem, isEquipped: boolean, onClick: () => void }> = ({ item, isEquipped, onClick }) => {
   const rarityCfg = RARITIES[item.rarity] || RARITIES.comum;
+  
   return (
-    <div onClick={onClick} className={`aspect-square relative rounded-[1.8rem] border-2 cursor-pointer transition-all hover:scale-110 active:scale-90 flex flex-col items-center justify-center gap-1 group overflow-hidden ${rarityCfg.bg} ${isEquipped ? 'ring-2 ring-indigo-500/50 border-indigo-500 bg-indigo-500/10 scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'}`}>
-      <span className="text-3xl drop-shadow-lg group-hover:scale-125 transition-transform">{item.icon}</span>
-      {item.quantity && item.quantity > 1 && <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/90 rounded-md border border-zinc-700 text-[8px] font-black text-white">x{item.quantity}</div>}
+    <div 
+      onClick={onClick} 
+      className={`group aspect-square relative rounded-[2rem] border-2 cursor-pointer transition-all hover:scale-110 active:scale-95 flex flex-col items-center justify-center gap-1 overflow-hidden backdrop-blur-sm
+        ${isEquipped 
+          ? 'ring-2 ring-indigo-500/50 border-indigo-500 bg-indigo-500/10 scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
+          : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-600'
+        }
+      `}
+    >
+      <div className={`absolute inset-0 opacity-10 transition-opacity group-hover:opacity-20 ${rarityCfg.bg}`} />
+      <span className={`text-4xl drop-shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-transform group-hover:scale-110 relative z-10 ${item.rarity === 'lendario' ? 'animate-pulse' : ''}`}>
+        {item.icon}
+      </span>
+      {item.quantity && item.quantity > 1 && (
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-700/50 rounded-lg text-[9px] font-black text-indigo-300 backdrop-blur-md z-20">
+          x{item.quantity}
+        </div>
+      )}
+      {item.rarity === 'lendario' && (
+        <div className="absolute inset-0 border-2 border-amber-500/30 animate-pulse rounded-[2rem] pointer-events-none" />
+      )}
+      <div className="absolute top-2 left-2 text-[8px] opacity-30 group-hover:opacity-100 transition-opacity">
+        {item.type === 'equipment' ? '⚔️' : item.type === 'buff' ? '🧪' : item.type === 'theme' ? '🔮' : '🎭'}
+      </div>
     </div>
   );
 };
 
 const EquipSlot: React.FC<{ slot: EquipmentSlot, user: User, onSelect: (item: InventoryItem) => void }> = ({ slot, user, onSelect }) => {
   const itemId = user.equipment?.[slot];
-  const item = itemId ? SHOP_ITEMS.find(i => i.id === itemId) : null;
+  const item = itemId ? (user.inventory.find(i => i.id === itemId) || SHOP_ITEMS.find(i => i.id === itemId)) : null;
+  
   const icons: Record<EquipmentSlot, string> = { head: '👤', body: '👕', acc1: '💍', acc2: '💍', special: '✨' };
-  const labels: Record<EquipmentSlot, string> = { head: 'CABEÇA', body: 'CORPO', acc1: 'ACES. 1', acc2: 'ACES. 2', special: 'ESPECIAL' };
+  const labels: Record<EquipmentSlot, string> = { head: 'CABEÇA', body: 'CORPO', acc1: 'ACESSÓRIO', acc2: 'ACESSÓRIO', special: 'RELÍQUIA' };
+  
+  const isLegendary = item?.rarity === 'lendario';
+  const rarityCfg = item ? RARITIES[item.rarity] : null;
+
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div onClick={() => item && onSelect(item)} className={`w-16 h-16 rounded-[1.6rem] border-2 flex flex-col items-center justify-center transition-all active:scale-90 relative cursor-pointer shadow-xl ${item?.rarity === 'lendario' ? 'animate-equip-legendary border-amber-500 scale-110 shadow-[0_0_25px_rgba(245,158,11,0.4)]' : item ? 'border-indigo-500/60 bg-indigo-900/10 scale-110' : 'border-zinc-800 bg-zinc-950/40 opacity-30 border-dashed hover:opacity-100 hover:scale-105 hover:border-indigo-500/50'}`}>
-        <span className="text-3xl drop-shadow-2xl">{item ? item.icon : icons[slot]}</span>
+    <div className="flex flex-col items-center gap-4">
+      <div 
+        onClick={() => item && onSelect(item as InventoryItem)} 
+        className={`w-16 h-16 md:w-20 md:h-20 rounded-[2rem] border-2 flex flex-col items-center justify-center transition-all active:scale-90 relative cursor-pointer shadow-3xl backdrop-blur-md group
+          ${isLegendary 
+            ? 'animate-equip-legendary border-amber-500 scale-110' 
+            : item 
+              ? `border-indigo-500/60 bg-indigo-900/10 scale-110 shadow-[0_0_25px_rgba(99,102,241,0.3)]` 
+              : 'border-zinc-800/50 bg-zinc-950/30 opacity-40 hover:opacity-100 hover:scale-110 hover:border-indigo-500/40'
+          }
+        `}
+      >
+        {rarityCfg && (
+          <div className={`absolute inset-0 opacity-20 rounded-[1.8rem] ${rarityCfg.bg}`} />
+        )}
+        <span className={`text-3xl md:text-4xl drop-shadow-2xl relative z-10 transition-transform group-hover:scale-110`}>
+          {item ? item.icon : icons[slot]}
+        </span>
+        {item && (
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full border-2 border-zinc-950 z-20 shadow-lg" />
+        )}
       </div>
-      <span className="text-[7px] font-black uppercase text-zinc-600 tracking-widest">{labels[slot]}</span>
+      <div className="flex flex-col items-center space-y-1">
+        <span className={`text-[7px] font-black uppercase tracking-[0.4em] ${item ? 'text-indigo-400' : 'text-zinc-600'}`}>
+          {labels[slot]}
+        </span>
+        {item && <span className="text-[6px] font-bold text-zinc-500 uppercase truncate max-w-[60px] bg-zinc-900/50 px-2 py-0.5 rounded-full">{item.name}</span>}
+      </div>
     </div>
   );
 };

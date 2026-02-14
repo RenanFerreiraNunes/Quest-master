@@ -14,14 +14,20 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
   const [nickname, setNickname] = useState(initialData?.nickname || '');
   const [charClass, setCharClass] = useState<CharacterClass>(initialData?.charClass || 'Guerreiro');
   const [avatarIcon, setAvatarIcon] = useState(initialData?.avatar || '🛡️');
+  const [zoomLevel, setZoomLevel] = useState(1); // 0: Afastado, 1: Normal, 2: Focado
+  
   const [appearance, setAppearance] = useState<Appearance>(initialData?.appearance || {
     skinColor: '#ffdbac',
     hairStyle: 'short',
     hairColor: '#4a3728',
+    facialHair: 'none',
+    facialHairColor: '#4a3728',
+    eyebrowStyle: 'normal',
     eyeStyle: 'round',
     eyeColor: '#4b8eb5',
     expression: 'neutral',
-    outfitColor: '#3f3f46'
+    outfitColor: '#3f3f46',
+    neckOffset: 0
   });
 
   const handleFinish = () => {
@@ -30,8 +36,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
       alert("Seu herói precisa de um nome digno!");
       return;
     }
-    
-    // Forçar a execução do callback
     onComplete({ 
       nickname: trimmedName, 
       charClass, 
@@ -45,7 +49,23 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
     { label: 'Afiado', value: 'sharp' },
     { label: 'Místico', value: 'glow' },
     { label: 'Grande', value: 'large' },
-    { label: 'Fincado', value: 'closed' },
+    { label: 'Cerrado', value: 'closed' },
+  ];
+
+  const facialHairStyles: { label: string; value: Appearance['facialHair'] }[] = [
+    { label: 'Liso', value: 'none' },
+    { label: 'Sombra', value: 'stubble' },
+    { label: 'Cavanhaque', value: 'goatee' },
+    { label: 'Bigode', value: 'mustache' },
+    { label: 'Barba', value: 'beard' },
+  ];
+
+  const eyebrowStyles: { label: string; value: Appearance['eyebrowStyle'] }[] = [
+    { label: 'Nenhuma', value: 'none' },
+    { label: 'Normal', value: 'normal' },
+    { label: 'Grossa', value: 'thick' },
+    { label: 'Fina', value: 'thin' },
+    { label: 'Raiva', value: 'angry' },
   ];
 
   const expressions: { emoji: string; value: Appearance['expression'] }[] = [
@@ -58,7 +78,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
     { emoji: '😲', value: 'surprised' },
   ];
 
-  const hairStyles: Appearance['hairStyle'][] = ['none', 'short', 'spiky', 'long', 'mohawk', 'hood', 'bob', 'braids'];
+  // Hood removido da criação conforme solicitado
+  const hairStyles: Appearance['hairStyle'][] = ['none', 'short', 'spiky', 'long', 'mohawk', 'bob', 'braids'];
+
+  const getZoomStyle = () => {
+    if (zoomLevel === 0) return 'scale-[0.7] translate-y-[-10px]';
+    if (zoomLevel === 1) return 'scale-[0.85] translate-y-4';
+    return 'scale-[1.4] translate-y-32';
+  };
 
   return (
     <div className="fixed inset-0 min-h-screen bg-zinc-950 flex items-center justify-center p-4 md:p-8 z-[200] overflow-hidden">
@@ -69,8 +96,22 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
           <div className="absolute inset-0 bg-red-600/5 blur-[120px] pointer-events-none" />
           
           <div className="flex flex-col items-center w-full space-y-8 flex-1 justify-center relative z-10">
+            {/* CONTAINER DO AVATAR COM FOCO DE CÂMERA */}
             <div className="w-64 h-64 md:w-80 md:h-80 bg-zinc-950/80 rounded-[3.5rem] border-2 border-zinc-800 flex items-center justify-center relative shadow-3xl overflow-hidden group">
-               <HeroAvatar appearance={appearance} size={300} className="translate-y-10" />
+               <div className={`transition-all duration-700 ease-in-out transform ${getZoomStyle()}`}>
+                 <HeroAvatar appearance={appearance} size={300} />
+               </div>
+
+               {/* Botão de Foco de Câmera 3 estágios */}
+               <button 
+                onClick={() => setZoomLevel((zoomLevel + 1) % 3)}
+                className={`absolute top-6 left-6 p-4 rounded-2xl border transition-all z-20 bg-zinc-900/80 text-zinc-500 border-zinc-700 hover:text-white flex items-center gap-2`}
+                title="Alternar Foco de Câmera"
+               >
+                 <span className="text-xl">🔍</span>
+                 <span className="text-[9px] font-black uppercase tracking-widest">{zoomLevel === 0 ? 'Afastado' : zoomLevel === 1 ? 'Normal' : 'Focado'}</span>
+               </button>
+
                <div className="absolute top-6 right-6 text-4xl md:text-5xl bg-zinc-900/90 p-3 rounded-2xl backdrop-blur-md border border-zinc-700/50 shadow-2xl">
                  {avatarIcon}
                </div>
@@ -122,22 +163,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
               />
             </section>
 
-            {/* Brasão */}
-            <section className="space-y-6">
-              <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Símbolo Espiritual (Avatar)</label>
-              <div className="grid grid-cols-6 md:grid-cols-12 gap-3">
-                {AVATAR_ICONS.map(icon => (
-                  <button 
-                    key={icon}
-                    onClick={() => setAvatarIcon(icon)}
-                    className={`aspect-square flex items-center justify-center text-2xl rounded-2xl border-2 transition-all ${avatarIcon === icon ? 'bg-red-600/20 border-red-600 scale-110 shadow-lg' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-            </section>
-
             {/* Trilha de Classe */}
             <section className="space-y-6">
               <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Destino do Herói</label>
@@ -154,39 +179,33 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
               </div>
             </section>
 
-            {/* Paleta de Cores */}
-            <section className="grid grid-cols-3 gap-8">
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest text-center block">Pele</label>
-                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800">
-                  <input type="color" className="w-full h-12 rounded-xl bg-transparent cursor-pointer border-none" value={appearance.skinColor} onChange={e => setAppearance({...appearance, skinColor: e.target.value})} />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest text-center block">Cabelo</label>
-                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800">
-                  <input type="color" className="w-full h-12 rounded-xl bg-transparent cursor-pointer border-none" value={appearance.hairColor} onChange={e => setAppearance({...appearance, hairColor: e.target.value})} />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest text-center block">Vestimenta</label>
-                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800">
-                  <input type="color" className="w-full h-12 rounded-xl bg-transparent cursor-pointer border-none" value={appearance.outfitColor} onChange={e => setAppearance({...appearance, outfitColor: e.target.value})} />
-                </div>
+            {/* Sobrancelhas */}
+            <section className="space-y-6">
+              <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Traços Supercílios</label>
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                {eyebrowStyles.map(s => (
+                  <button key={s.value} onClick={() => setAppearance({...appearance, eyebrowStyle: s.value})} className={`py-4 rounded-2xl border-2 text-[9px] font-black uppercase tracking-widest transition-all ${appearance.eyebrowStyle === s.value ? 'bg-amber-600/20 border-amber-600 text-white' : 'bg-zinc-950 border-zinc-800 text-zinc-600 hover:border-zinc-700'}`}>{s.label}</button>
+                ))}
               </div>
             </section>
 
-            {/* Olhar Profundo */}
+            {/* Estilo dos Olhos */}
             <section className="space-y-6">
-              <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Estilo do Olhar</label>
+              <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Olhar do Destino</label>
               <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
                 {eyeStyles.map(s => (
-                  <button key={s.value} onClick={() => setAppearance({...appearance, eyeStyle: s.value})} className={`py-4 rounded-2xl border-2 text-[9px] font-black uppercase tracking-widest transition-all ${appearance.eyeStyle === s.value ? 'bg-red-600/20 border-red-600 text-white' : 'bg-zinc-950 border-zinc-800 text-zinc-600 hover:border-zinc-700'}`}>{s.label}</button>
+                  <button key={s.value} onClick={() => setAppearance({...appearance, eyeStyle: s.value})} className={`py-4 rounded-2xl border-2 text-[9px] font-black uppercase tracking-widest transition-all ${appearance.eyeStyle === s.value ? 'bg-indigo-600/20 border-indigo-600 text-white shadow-lg' : 'bg-zinc-950 border-zinc-800 text-zinc-600 hover:border-zinc-700'}`}>{s.label}</button>
                 ))}
               </div>
-              <div className="flex items-center gap-4 mt-4 bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800">
-                 <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Pigmento das Íris:</label>
-                 <input type="color" className="w-20 h-8 rounded-lg bg-zinc-800 cursor-pointer border border-zinc-700" value={appearance.eyeColor} onChange={e => setAppearance({...appearance, eyeColor: e.target.value})} />
+            </section>
+
+            {/* Pelos Faciais (Barba) */}
+            <section className="space-y-6">
+              <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Estilo de Barba</label>
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                {facialHairStyles.map(s => (
+                  <button key={s.value} onClick={() => setAppearance({...appearance, facialHair: s.value})} className={`py-4 rounded-2xl border-2 text-[9px] font-black uppercase tracking-widest transition-all ${appearance.facialHair === s.value ? 'bg-red-600/20 border-red-600 text-white' : 'bg-zinc-950 border-zinc-800 text-zinc-600 hover:border-zinc-700'}`}>{s.label}</button>
+                ))}
               </div>
             </section>
 
@@ -197,6 +216,34 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ initialData, onComp
                 {hairStyles.map((style) => (
                   <button key={style} onClick={() => setAppearance({...appearance, hairStyle: style})} className={`py-4 rounded-2xl border-2 text-[9px] font-black uppercase tracking-widest transition-all ${appearance.hairStyle === style ? 'bg-red-600/20 border-red-600 text-white shadow-lg' : 'bg-zinc-950 border-zinc-800 text-zinc-600 hover:border-zinc-700'}`}>{style}</button>
                 ))}
+              </div>
+            </section>
+
+            {/* Paleta de Cores */}
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="space-y-4">
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest text-center block">Pele</label>
+                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                  <input type="color" className="w-full h-10 rounded-xl bg-transparent cursor-pointer border-none" value={appearance.skinColor} onChange={e => setAppearance({...appearance, skinColor: e.target.value})} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest text-center block">Cabelo</label>
+                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                  <input type="color" className="w-full h-10 rounded-xl bg-transparent cursor-pointer border-none" value={appearance.hairColor} onChange={e => setAppearance({...appearance, hairColor: e.target.value, facialHairColor: e.target.value})} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest text-center block">Olhos</label>
+                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                  <input type="color" className="w-full h-10 rounded-xl bg-transparent cursor-pointer border-none" value={appearance.eyeColor} onChange={e => setAppearance({...appearance, eyeColor: e.target.value})} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest text-center block">Traje</label>
+                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                  <input type="color" className="w-full h-10 rounded-xl bg-transparent cursor-pointer border-none" value={appearance.outfitColor} onChange={e => setAppearance({...appearance, outfitColor: e.target.value})} />
+                </div>
               </div>
             </section>
 
