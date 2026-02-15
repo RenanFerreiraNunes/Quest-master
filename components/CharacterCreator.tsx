@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { CharacterClass, Appearance } from '../types';
-import { CLASSES, CLASS_STATS, AVATAR_PRESETS, AVATAR_ICONS } from '../constants';
+import { CLASSES, CLASS_STATS } from '../constants';
 import HeroAvatar from './HeroAvatar';
 
 interface CharacterCreatorProps {

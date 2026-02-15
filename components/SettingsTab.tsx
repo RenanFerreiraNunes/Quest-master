@@ -41,36 +41,35 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
   };
 
   const handleImport = () => {
-    const code = prompt("Cole o código da alma do herói que deseja importar para este reino:");
+    const code = prompt("Cole o código da alma do herói:");
     if (code) {
       const success = db.importHero(code);
-      if (success) alert("Herói importado com sucesso! Agora você pode encontrá-lo na aba Social.");
-      else alert("Código inválido. Certifique-se de que copiou o código completo.");
+      if (success) alert("Herói importado com sucesso!");
+      else alert("Código inválido.");
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12 pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700 relative z-20 px-4">
+    <div className="max-w-4xl mx-auto space-y-12 pb-32 animate-in fade-in duration-700 px-4">
       <header className="text-center space-y-4">
         <h2 className="text-6xl font-rpg text-white uppercase tracking-tighter">Câmara de <span className="text-zinc-500">Ajustes</span></h2>
         <p className="text-zinc-500 font-black uppercase tracking-[0.4em] text-[9px]">Configurações técnicas e manipulação de realidade</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Preferências de Sistema */}
-        <section className="bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
+        <section className="bg-zinc-900/40 border-2 border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
           <h3 className="text-xs font-black text-zinc-600 uppercase tracking-widest flex items-center gap-3">
-            <span className="w-2 h-2 bg-indigo-500 rounded-full"></span> Preferências do Reino
+            <span className="w-2 h-2 bg-indigo-500 rounded-full"></span> Preferências
           </h3>
           
-          <div className="flex items-center justify-between p-6 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+          <div className="flex items-center justify-between p-6 bg-zinc-950/60 rounded-3xl border border-zinc-800">
             <div>
-              <p className="text-sm font-black text-white">Efeitos Visuais</p>
-              <p className="text-[10px] text-zinc-500">Animações e partículas</p>
+              <p className="text-sm font-black text-white">Animações de Fluidez</p>
+              <p className="text-[10px] text-zinc-500">Partículas e transições</p>
             </div>
             <button 
               onClick={() => setAnimationsEnabled(!animationsEnabled)}
-              className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${animationsEnabled ? 'bg-indigo-600' : 'bg-zinc-800'}`}
+              className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${animationsEnabled ? 'bg-indigo-600 shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'bg-zinc-800'}`}
             >
               <div className={`w-6 h-6 bg-white rounded-full transition-all duration-300 ${animationsEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
             </button>
@@ -80,28 +79,24 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             onClick={onEditProfile}
             className="w-full py-5 bg-zinc-800 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest hover:bg-zinc-700 transition-all border-b-4 border-zinc-950"
           >
-            Reforgar Identidade Visual
+            Reforgar Avatar
           </button>
         </section>
 
-        {/* Consola de Runas (Cheats) */}
-        <section className="bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
+        <section className="bg-zinc-900/40 border-2 border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
           <h3 className="text-xs font-black text-zinc-600 uppercase tracking-widest flex items-center gap-3">
             <span className="w-2 h-2 bg-red-600 rounded-full"></span> Consola de Runas
           </h3>
           
           <form onSubmit={handleSubmitCheat} className="space-y-4">
-            <div className="bg-black p-4 rounded-xl border border-zinc-800 font-mono text-[10px] shadow-inner">
-              <p className="text-emerald-500 mb-2">// Comandos Disponíveis:</p>
-              <p className="text-zinc-500">/ouro - Ganha 1000G</p>
-              <p className="text-zinc-500">/xp - Ganha 500XP</p>
-              <p className="text-zinc-500">/vida - Cura Total</p>
+            <div className="bg-black p-4 rounded-xl border border-zinc-800 font-mono text-[9px] shadow-inner text-emerald-500">
+              <p>// /ouro, /xp, /vida</p>
             </div>
             <div className="relative">
               <input 
                 type="text" 
                 placeholder="Inserir Runa..."
-                className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-indigo-400 text-xs outline-none focus:border-indigo-600 transition-all"
+                className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-indigo-400 text-xs outline-none focus:border-indigo-600"
                 value={cheatInput}
                 onChange={e => setCheatInput(e.target.value)}
               />
@@ -110,62 +105,26 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
           </form>
         </section>
 
-        {/* Portabilidade de Dados */}
-        <section className="md:col-span-2 bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] space-y-8 shadow-xl">
+        <section className="md:col-span-2 bg-zinc-900/40 border-2 border-zinc-800 p-10 rounded-[3.5rem] space-y-8 shadow-xl">
           <h3 className="text-xs font-black text-zinc-600 uppercase tracking-widest flex items-center gap-3">
-            <span className="w-2 h-2 bg-amber-500 rounded-full"></span> Backup e Transferência
+            <span className="w-2 h-2 bg-amber-500 rounded-full"></span> Portabilidade
           </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-zinc-950/60 p-6 rounded-3xl border border-zinc-800 space-y-4">
-               <p className="text-[10px] font-black text-zinc-500 uppercase">Sua Alma Digital</p>
-               <p className="text-xs text-zinc-400 leading-relaxed">Gere um código para levar seu herói para outro navegador ou para que amigos possam te adicionar.</p>
-               <button 
-                onClick={handleExport}
-                className={`w-full py-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${copyFeedback ? 'bg-emerald-600 text-white' : 'bg-white text-black hover:bg-zinc-200'}`}
-               >
-                 {copyFeedback ? 'Copiado para o Pergaminho!' : 'Exportar Código do Herói'}
-               </button>
-            </div>
-
-            <div className="bg-zinc-950/60 p-6 rounded-3xl border border-zinc-800 space-y-4">
-               <p className="text-[10px] font-black text-zinc-500 uppercase">Trazer Herói</p>
-               <p className="text-xs text-zinc-400 leading-relaxed">Cole o código de um amigo para que ele passe a existir neste reino e vocês possam interagir.</p>
-               <button 
-                onClick={handleImport}
-                className="w-full py-4 bg-zinc-800 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-all"
-               >
-                 Importar Herói Externo
-               </button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button onClick={handleExport} className={`py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${copyFeedback ? 'bg-emerald-600 text-white' : 'bg-white text-black hover:bg-zinc-200 shadow-xl'}`}>
+              {copyFeedback ? 'Alma Copiada!' : 'Exportar Código da Alma'}
+            </button>
+            <button onClick={handleImport} className="py-5 bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-all">Importar Herói Externo</button>
           </div>
         </section>
 
-        {/* Informações de Conta */}
-        <section className="md:col-span-2 bg-zinc-900/40 border border-zinc-800 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
-           <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-zinc-950 rounded-2xl border border-zinc-800 flex items-center justify-center text-2xl opacity-40">
-                🗝️
-              </div>
-              <div>
-                <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Herói Registrado sob o Email</p>
-                <p className="text-xl font-black text-white">{user.email}</p>
-              </div>
+        <section className="md:col-span-2 bg-red-900/5 border-2 border-red-900/20 p-10 rounded-[3.5rem] flex flex-col md:flex-row items-center justify-between gap-8">
+           <div>
+              <p className="text-[10px] font-black text-red-900 uppercase tracking-widest">Zona de Perigo</p>
+              <p className="text-xs text-zinc-500 mt-1">Ações irreversíveis que afetam o reino.</p>
            </div>
-           
            <div className="flex gap-4 w-full md:w-auto">
-             <button 
-               onClick={onLogout}
-               className="flex-1 md:flex-none px-10 py-5 border border-zinc-800 rounded-2xl text-[9px] font-black uppercase text-zinc-500 hover:text-red-500 hover:border-red-900/50 transition-all"
-             >
-               Sair da Guilda
-             </button>
-             <button 
-               onClick={() => { if(confirm("ADVERTÊNCIA: Isso apagará toda sua jornada para sempre. Continuar?")) onResetData(); }}
-               className="flex-1 md:flex-none px-10 py-5 bg-red-900/20 text-red-500 border border-red-900/30 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
-             >
-               Expurgar Dados
-             </button>
+             <button onClick={onLogout} className="px-8 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-[9px] font-black uppercase hover:text-white">Desconectar</button>
+             <button onClick={onResetData} className="px-8 py-4 bg-red-600 text-white rounded-2xl text-[9px] font-black uppercase hover:bg-red-500 shadow-xl border-b-4 border-red-900">Resetar Tudo</button>
            </div>
         </section>
       </div>

@@ -5,7 +5,7 @@ export type CharacterClass = 'Guerreiro' | 'Mago' | 'Ladino' | 'Paladino';
 export type ItemType = 'buff' | 'cosmetic' | 'equipment' | 'theme' | 'skin';
 export type SkillType = 'ativa' | 'passiva';
 export type EquipmentSlot = 'head' | 'body' | 'acc1' | 'acc2' | 'special';
-export type GuildRank = 'Mestre' | 'Oficial' | 'Recruta';
+export type TalentTreeType = 'vitalidade' | 'sabedoria' | 'prosperidade' | 'combate';
 
 export interface Appearance {
   skinColor: string;
@@ -20,21 +20,33 @@ export interface Appearance {
   outfitColor: string;
   outfitId?: string; 
   neckOffset?: number;
-  fringeDepth?: number; // 0 a 1, padrão 0.5
-  fringeCurvature?: number; // 0 a 1, padrão 0.5
+  fringeDepth?: number;
+  fringeCurvature?: number;
 }
 
-export interface Skill {
+export interface Talent {
   id: string;
   name: string;
   description: string;
-  type: SkillType;
+  tree: TalentTreeType;
   level: number;
   maxLevel: number;
-  xpCostBase: number;
   icon: string;
-  effect: string;
-  lastUsed?: number;
+  effectValue: number; 
+  requiredTalentId?: string;
+}
+
+export interface Monster {
+  id: string;
+  name: string;
+  hp: number;
+  maxHp: number;
+  attack: number;
+  defense: number;
+  level: number;
+  isBoss: boolean;
+  appearance: Appearance;
+  rewards: { xp: number; gold: number; itemChance: number };
 }
 
 export interface Task {
@@ -52,7 +64,6 @@ export interface Task {
   failed?: boolean; 
   doneAt?: number;
   createdAt: number;
-  activeSkillApplied?: string;
 }
 
 export interface InventoryItem {
@@ -72,23 +83,6 @@ export interface InventoryItem {
   quantity?: number; 
 }
 
-export interface CampaignMission {
-  id: string;
-  title: string;
-  description: string;
-  requiredLevel: number;
-  xpReward: number;
-  goldReward: number;
-  completed: boolean;
-  chapter: number;
-}
-
-export interface FriendRequest {
-  fromEmail: string;
-  fromNickname: string;
-  status: 'pending' | 'accepted';
-}
-
 export interface Guild {
   id: string;
   name: string;
@@ -100,14 +94,20 @@ export interface Guild {
   requiredLevel: number;
 }
 
-export interface User {
+// Novo tipo para dados que podem ser vistos por outros usuários (Ranking/Social)
+export interface PublicProfile {
   email: string;
   nickname: string;
   charClass: CharacterClass;
-  avatar: string; 
-  appearance: Appearance;
   xp: number;
   level: number;
+  appearance: Appearance;
+  avatar: string;
+  guildId: string | null;
+  friendRequests?: FriendRequest[];
+}
+
+export interface User extends PublicProfile {
   gold: number;
   hp: number;
   maxHp: number;
@@ -116,13 +116,11 @@ export interface User {
   activeTheme: string; 
   tasks: Task[];
   inventory: InventoryItem[];
-  skills: Skill[];
-  equippedSkills: string[];
+  talents: Talent[];
+  talentPoints: number;
   equipment: Record<EquipmentSlot, string | null>;
   campaignProgress: number; 
   friends: string[]; 
-  friendRequests: FriendRequest[];
-  guildId: string | null;
 }
 
 export interface RarityConfig {
@@ -132,4 +130,10 @@ export interface RarityConfig {
   bg: string;
   shadow: string;
   multiplier: number; 
+}
+
+export interface FriendRequest {
+  fromEmail: string;
+  fromNickname: string;
+  status: 'pending' | 'accepted' | 'declined';
 }
